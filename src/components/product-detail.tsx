@@ -134,7 +134,7 @@ export function ProductDetail({
       </nav>
 
       <div className="grid gap-6 md:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] md:gap-8">
-        <div className={cn(panel, "self-start p-3 sm:p-4")}>
+        <div className={cn(panel, "self-start p-3 sm:p-4 md:col-start-1 md:row-start-1")}>
           <ProductGallery
             images={images}
             alt={product.title}
@@ -148,7 +148,7 @@ export function ProductDetail({
           />
         </div>
 
-        <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-5 md:col-start-2 md:row-span-2 md:row-start-1">
           <div>
             {category && (
               <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{category.name}</p>
@@ -227,7 +227,7 @@ export function ProductDetail({
             <Button
               asChild
               size="lg"
-              className="mt-5 h-12 w-full gap-2 rounded-lg bg-cta text-base font-bold text-cta-foreground hover:bg-cta-hover"
+              className="mt-6 h-14 w-full gap-2 rounded-xl bg-cta text-lg font-extrabold text-cta-foreground shadow-lg shadow-cta/30 ring-offset-2 hover:bg-cta-hover"
             >
               <OfferLink product={product} store={bestOffer.store} affiliateUrl={bestOffer.affiliateUrl}>
                 Ver oferta {into} {store.name}
@@ -240,65 +240,67 @@ export function ProductDetail({
             <p className="mt-1 text-center text-[11px] text-muted-foreground">
               Link de afiliado: o E-Zoom pode receber comissão, sem custo extra para você.
             </p>
-
-            <ShareButton
-              id={product.id}
-              title={product.title}
-              price={product.price}
-              storeName={store.name}
-              className="mt-4 grid grid-cols-2 [&>*:nth-child(3)]:col-span-2"
-              leading={
-                <motion.button
-                  ref={buttonRef}
-                  type="button"
-                  aria-pressed={favorited}
-                  onClick={handleToggle}
-                  whileTap={{ scale: 0.97 }}
-                  className={cn(
-                    "flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border px-4 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                    favorited
-                      ? "border-primary bg-primary/10 text-brand"
-                      : "border-border text-foreground hover:border-primary/50 hover:text-brand",
-                  )}
-                >
-                  <AnimatePresence mode="popLayout" initial={false}>
-                    <motion.span
-                      key={favorited ? "on" : "off"}
-                      initial={{ scale: 0.4, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      exit={{ scale: 0.4, opacity: 0 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      <Bookmark className={cn("h-4 w-4", favorited && "fill-current")} aria-hidden />
-                    </motion.span>
-                  </AnimatePresence>
-                  {favorited ? "Oferta salva" : "Salvar oferta"}
-                </motion.button>
-              }
-            />
-
-            <p className="mt-4 text-sm">
-              <OfferLink
-                product={product}
-                store={bestOffer.store}
-                affiliateUrl={bestOffer.affiliateUrl}
-                className="inline-flex items-center gap-1.5 font-medium text-brand hover:underline"
-              >
-                <MessageSquareText className="h-4 w-4" aria-hidden />
-                Ver avaliações de compradores {into} {store.name}
-              </OfferLink>
-            </p>
-
-            <div className="mt-4 flex gap-3 rounded-xl bg-accent p-4 text-accent-foreground">
-              <Info className="mt-0.5 h-5 w-5 shrink-0 text-brand" aria-hidden />
-              <div className="text-sm">
-                <p className="font-bold">Confira antes de comprar</p>
-                <p className="mt-0.5 text-muted-foreground">
-                  Confirme o modelo, o preço e o frete na página da loja. Preços e disponibilidade podem mudar.
-                </p>
-              </div>
-            </div>
           </section>
+        </div>
+
+        <div className="flex flex-col gap-4 md:col-start-1 md:row-start-2">
+        <ShareButton
+          id={product.id}
+          title={product.title}
+          price={product.price}
+          storeName={store.name}
+          className="grid grid-cols-2 [&>*:nth-child(3)]:col-span-2"
+          leading={
+            <motion.button
+              ref={buttonRef}
+              type="button"
+              aria-pressed={favorited}
+              onClick={handleToggle}
+              whileTap={{ scale: 0.97 }}
+              className={cn(
+                "flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border px-4 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                favorited
+                  ? "border-primary bg-primary/10 text-brand"
+                  : "border-border text-foreground hover:border-primary/50 hover:text-brand",
+              )}
+            >
+              <AnimatePresence mode="popLayout" initial={false}>
+                <motion.span
+                  key={favorited ? "on" : "off"}
+                  initial={{ scale: 0.4, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.4, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <Bookmark className={cn("h-4 w-4", favorited && "fill-current")} aria-hidden />
+                </motion.span>
+              </AnimatePresence>
+              {favorited ? "Oferta salva" : "Salvar oferta"}
+            </motion.button>
+          }
+        />
+
+        <p className="text-sm">
+          <OfferLink
+            product={product}
+            store={bestOffer.store}
+            affiliateUrl={bestOffer.affiliateUrl}
+            className="inline-flex items-center gap-1.5 font-medium text-brand hover:underline"
+          >
+            <MessageSquareText className="h-4 w-4" aria-hidden />
+            Ver avaliações de compradores {into} {store.name}
+          </OfferLink>
+        </p>
+
+        <div className="flex gap-3 rounded-xl bg-accent p-4 text-accent-foreground">
+          <Info className="mt-0.5 h-5 w-5 shrink-0 text-brand" aria-hidden />
+          <div className="text-sm">
+            <p className="font-bold">Confira antes de comprar</p>
+            <p className="mt-0.5 text-muted-foreground">
+              Confirme o modelo, o preço e o frete na página da loja. Preços e disponibilidade podem mudar.
+            </p>
+          </div>
+        </div>
         </div>
       </div>
 
