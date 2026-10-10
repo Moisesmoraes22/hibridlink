@@ -80,7 +80,10 @@ A amostra de cliques é pequena e inclui testes nossos. Serve de indício, não 
 ### B3. Oferta vencida vira 404
 - **Medido:** o sitemap lista 12.884 páginas de produto; elas expiram em 48 h e respondem 404.
 - **Correção:** mostrar "oferta encerrada" com ofertas parecidas e tirar do sitemap as inativas.
-- **Estado:** aberto.
+- **Obstáculo:** a regra de leitura do banco (`public read active offers`) só libera ofertas ativas,
+  então o site nem consegue ler o título de uma oferta vencida. Precisa de uma função no banco que
+  devolva título, foto e categoria da oferta encerrada.
+- **Estado:** depende de você (autorizar a migração).
 
 ### B4. Dados estruturados incompletos
 - `Product` e `Offer` existem; faltam `BreadcrumbList` e `ItemList` nas categorias.
@@ -88,8 +91,11 @@ A amostra de cliques é pequena e inclui testes nossos. Serve de indício, não 
 - **Estado:** aberto (Fase 4).
 
 ### B5. Peso das fotos na página de produto
-- Galeria com até 8 fotos em tamanho original (medido antes: cerca de 5 MB).
-- **Estado:** aberto.
+- As miniaturas de 56 px carregavam a foto em tamanho original (até 8 por produto).
+- **Correção:** miniaturas usam a cópia pequena da loja (500 px no Mercado Livre, 320 px na Shopee).
+  Medido num produto com 7 fotos: só a foto principal vem em tamanho cheio (198 KB); as miniaturas
+  ficam entre 47 e 66 KB cada.
+- **Estado:** feito.
 
 ### B6. Contagens do cabeçalho em 32 consultas
 - `getSiteSummary` faz uma contagem por categoria e por loja. Uma função agrupada resolve em uma.
@@ -111,7 +117,7 @@ A amostra de cliques é pequena e inclui testes nossos. Serve de indício, não 
 ### C3. Home com poucas ofertas
 - A home gerou 23 dos 57 cliques e o redesign a deixou com 4 ofertas.
 - **Correção:** recolocar prateleiras com dado real ("Baixou de preço hoje", "Mais clicadas").
-- **Estado:** aberto.
+- **Estado:** depende de você (a ordem da home foi fixada no pedido do redesign).
 
 ### C4. Oferta e procura desalinhadas
 - Eletrônicos, celulares e games: 25 dos 57 cliques. Catálogo: ferramentas 1.762, casa 1.160.
@@ -170,5 +176,6 @@ A amostra de cliques é pequena e inclui testes nossos. Serve de indício, não 
 5. C1, C2 e C5.
 
 ## Registro do trabalho
-- 10/10/2026: auditoria criada. A1, A3 e os dois textos da seção D corrigidos; código do A2 pronto,
-  aguardando a migração no banco.
+- 10/10/2026: auditoria criada. A1, A3, B5 e os dois textos da seção D corrigidos; código do A2
+  pronto, aguardando a migração no banco. Página de erro criada (`src/app/error.tsx`). Teste novo:
+  `engine/tests/catalog-failure.test.ts` (264 testes passando).
