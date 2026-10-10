@@ -59,9 +59,12 @@ A amostra de cliques é pequena e inclui testes nossos. Serve de indício, não 
 ### A4. Coleta roda bem menos que o agendado
 - **Medido:** agendada a cada 30 minutos no GitHub Actions; rodou 10, 5 e 3 vezes no dia.
 - **Efeito:** preço da Amazon com 19,8 h em média; ofertas vencem em 48 h sem serem revistas.
-- **Correção:** tirar o agendamento do GitHub (pg_cron do Supabase chamando o `workflow_dispatch`, ou
-  Vercel Cron). Separar o Telegram num fluxo próprio, mais frequente.
-- **Estado:** aberto.
+- **Correção:** tirar o agendamento do GitHub: o `pg_cron` do Supabase chama a API do GitHub
+  (`workflow_dispatch`) a cada 30 minutos. Isso exige um token do GitHub com permissão só de
+  Actions (workflow) neste repositório, guardado como segredo do banco. Vercel Cron não serve: o
+  plano gratuito só roda uma vez por dia e a função morre em 60 s, e a coleta do Mercado Livre
+  leva 7,5 min.
+- **Estado:** depende de você (criar o token; ver passos no relatório de entrega).
 
 ## B. Google e velocidade
 
@@ -93,9 +96,10 @@ A amostra de cliques é pequena e inclui testes nossos. Serve de indício, não 
   categoria e a busca, e fica fora do índice (`noindex`). O sitemap já lista só ofertas ativas.
 
 ### B4. Dados estruturados incompletos
-- `Product` e `Offer` existem; faltam `BreadcrumbList` e `ItemList` nas categorias.
-  `availability` é sempre `InStock`.
-- **Estado:** aberto (Fase 4).
+- `Product` e `Offer` já existiam. Agora há `BreadcrumbList` nos produtos e `BreadcrumbList` com
+  `ItemList` (24 primeiras ofertas) nas categorias. `availability` continua `InStock`, o que é
+  verdade enquanto a oferta está ativa.
+- **Estado:** feito (testes em `engine/tests/structured-data.test.ts`).
 
 ### B5. Peso das fotos na página de produto
 - As miniaturas de 56 px carregavam a foto em tamanho original (até 8 por produto).
@@ -186,6 +190,7 @@ A amostra de cliques é pequena e inclui testes nossos. Serve de indício, não 
 5. C1, C2 e C5.
 
 ## Registro do trabalho
+- 10/10/2026 (3º bloco): B4 feito (BreadcrumbList e ItemList). A4 e C7 dependem de segredos seus.
 - 10/10/2026 (2º bloco): migrações `offer_recent_prices` e `closed_offer` aplicadas no banco. B1, B3 e
   C3 feitos; catálogo em memória (build 68 s para 18 s).
 - 10/10/2026: auditoria criada. A1, A3, B5 e os dois textos da seção D corrigidos; código do A2
