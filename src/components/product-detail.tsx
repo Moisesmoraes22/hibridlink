@@ -21,7 +21,7 @@ import Link from "next/link"
 import { useEffect, useRef } from "react"
 
 import { OfferLink } from "@/components/offer-link"
-import { PriceSparkline } from "@/components/price-sparkline"
+import { PriceHistoryChart } from "@/components/price-history-chart"
 import { ProductGallery } from "@/components/product-gallery"
 import { ShareButton } from "@/components/share-button"
 import { StoreBadge } from "@/components/store-badge"
@@ -89,7 +89,6 @@ export function ProductDetail({
     tracked && tracked.points.length >= 3 && product.price < tracked.average * 0.98
       ? calculateDiscountPercent(product.price, tracked.average)
       : null
-  const recentPoints = tracked ? tracked.points.slice(-30) : []
 
   const facts: string[] = [
     `Vendido ${into} ${store.name}`,
@@ -338,14 +337,13 @@ export function ProductDetail({
 
           {tracked ? (
             <>
-              <PriceSparkline
-                values={recentPoints.map((p) => p.price)}
-                className="mt-4 h-20 w-full text-brand"
+              <PriceHistoryChart
+                stats={tracked}
+                now={Math.max(
+                  new Date(product.seenAt ?? 0).getTime(),
+                  new Date(tracked.points[tracked.points.length - 1].at).getTime(),
+                )}
               />
-              <p className="mt-1 flex justify-between text-[11px] text-muted-foreground">
-                <span>{formatDay(recentPoints[0].at)}</span>
-                <span>hoje</span>
-              </p>
               <dl className="mt-3 grid grid-cols-3 gap-3 text-sm">
                 <div>
                   <dt className="text-xs text-muted-foreground">Atual</dt>
