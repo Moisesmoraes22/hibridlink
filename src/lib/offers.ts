@@ -32,7 +32,28 @@ async function twice<T extends { error: unknown }>(run: () => PromiseLike<T>): P
  * still empty; a failed query THROWS instead, so Next keeps serving the last good page rather
  * than sample products. Memoised per request, so the layout and the page share one query.
  */
-export const getCatalog = cache(async (): Promise<{ products: Product[]; live: boolean }> => {
+type Catalog = { products: Product[]; live: boolean }
+/**
+ * The catalogue is kept per server process for a few minutes, with one read shared by everything
+ * asking at the same time. Without it each page regeneration (and each of the build's parallel
+ * workers) read ~13 pages of rows from the database on its own: timeouts at build, load at runtime.
+ */
+const CATALOG_TTL_MS = 5 * 60_000
+let catalogMemo: { at: number; value: Promise<Catalog> } | null = null
+
+export const getCatalog = cache((): Promise<Catalog> => {
+  if (!catalogMemo || Date.now() - catalogMemo.at > CATALOG_TTL_MS) {
+    const entry = { at: Date.now(), value: readCatalog() }
+    catalogMemo = entry
+    // A failed read must not be remembered: the next request tries again.
+    entry.value.catch(() => {
+      if (catalogMemo === entry) catalogMemo = null
+    })
+  }
+  return catalogMemo.value
+})
+
+async function readCatalog(): Promise<Catalog> {
   const { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } = process.env
   if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) return mockCatalog()
 
@@ -80,7 +101,7 @@ export const getCatalog = cache(async (): Promise<{ products: Product[]; live: b
   }))
   // Unset fields are dropped, not sent as "$undefined": ~80k of them were ~25% of the /busca payload.
   return { products: withVariants(products).map(withoutUndefined), live: true }
-})
+}
 
 /**
  * Last recorded prices per offer (oldest first) and, when the latest change was a real drop, when
