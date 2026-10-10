@@ -9,8 +9,8 @@ import { cn } from "@/lib/utils"
 
 const OPTIONS: { value: Theme; label: string; icon: LucideIcon }[] = [
   { value: "light", label: "Claro", icon: Sun },
-  { value: "system", label: "Sistema", icon: Monitor },
   { value: "dark", label: "Escuro", icon: Moon },
+  { value: "system", label: "Sistema", icon: Monitor },
 ]
 
 /** Header version of the theme picker: one small button that opens the three choices. */
