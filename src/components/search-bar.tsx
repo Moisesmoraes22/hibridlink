@@ -37,6 +37,14 @@ function saveRecent(query: string) {
   }
 }
 
+function removeRecent(query: string) {
+  try {
+    localStorage.setItem(RECENT_KEY, JSON.stringify(readRecent().filter((q) => q !== query)))
+  } catch {
+    // blocked storage: there was nothing saved to remove
+  }
+}
+
 interface Row {
   key: string
   href: string
@@ -317,7 +325,10 @@ export function SearchBar({
               <li
                 key={row.key}
                 role="presentation"
-                className={cn(row.key === "all" && "sticky bottom-0 mt-1 border-t border-border bg-popover pt-1")}
+                className={cn(
+                  "relative",
+                  row.key === "all" && "sticky bottom-0 mt-1 border-t border-border bg-popover pt-1",
+                )}
               >
                 <Link
                   id={`${listId}-${i}`}
@@ -332,6 +343,7 @@ export function SearchBar({
                   onMouseEnter={() => setActive(i)}
                   className={cn(
                     "flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
+                    row.key.startsWith("r-") && "pr-12",
                     i === active ? "bg-accent" : "hover:bg-accent",
                   )}
                 >
@@ -343,6 +355,22 @@ export function SearchBar({
                     </span>
                   )}
                 </Link>
+                {row.key.startsWith("r-") && row.remember && (
+                  <button
+                    type="button"
+                    aria-label={`Remover “${row.label}” das buscas recentes`}
+                    onClick={(event) => {
+                      event.preventDefault()
+                      event.stopPropagation()
+                      removeRecent(row.remember!)
+                      setRecent(readRecent())
+                      setActive(-1)
+                    }}
+                    className="absolute right-1 top-1/2 flex h-10 w-10 -translate-y-1/2 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-black/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <X className="h-4 w-4" aria-hidden />
+                  </button>
+                )}
               </li>
             ))}
           </ul>
