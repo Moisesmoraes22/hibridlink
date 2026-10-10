@@ -33,7 +33,7 @@ export function RecommendedSection({ pool }: { pool: Product[] }) {
           Limpar meus interesses
         </button>
       </div>
-      <ProductCarousel items={picks.map(({ product, reason }) => ({ product, label: reason }))} />
+      <ProductCarousel ariaLabel="Recomendado para você" items={picks.map(({ product, reason }) => ({ product, label: reason }))} />
     </section>
   )
 }

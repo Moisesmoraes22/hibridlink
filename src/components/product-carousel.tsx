@@ -17,12 +17,15 @@ import type { Product } from "@/lib/types"
 export function ProductCarousel({
   items,
   cardClassName,
+  ariaLabel = "Ofertas",
 }: {
   items: { product: Product; label?: string }[]
   cardClassName?: string
+  /** Names the carousel for screen readers (the section title). */
+  ariaLabel?: string
 }) {
   return (
-    <Carousel opts={{ align: "start", loop: items.length > 7 }} className="w-full" aria-label="Ofertas">
+    <Carousel opts={{ align: "start", loop: items.length > 7 }} className="w-full" aria-label={ariaLabel}>
       <CarouselContent>
         {items.map(({ product, label }) => (
           <CarouselItem key={product.id} className="basis-[60%] min-[375px]:basis-[50%] min-[480px]:basis-[40%] md:basis-[28.57%] lg:basis-[22.22%] xl:basis-[18.18%] 2xl:basis-[15.38%]">

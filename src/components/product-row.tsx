@@ -40,7 +40,7 @@ export function ProductRow({
           ))}
         </div>
       )}
-      <ProductCarousel items={products.map((product) => ({ product, label: cardLabel }))} />
+      <ProductCarousel ariaLabel={title} items={products.map((product) => ({ product, label: cardLabel }))} />
     </section>
   )
 }

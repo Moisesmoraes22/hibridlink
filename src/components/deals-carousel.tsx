@@ -44,6 +44,7 @@ export function DealsCarousel({
         <Carousel
           opts={{ align: "start", loop: products.length > 7 }}
           className="w-full"
+          aria-label={title ?? "Ofertas"}
         >
           <CarouselContent>
             {products.map((product, index) => (
