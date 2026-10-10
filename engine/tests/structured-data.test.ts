@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
 
-import { productJsonLd, serializeJsonLd } from "../../src/lib/structured-data.ts"
+import { breadcrumbJsonLd, itemListJsonLd, productJsonLd, serializeJsonLd } from "../../src/lib/structured-data.ts"
 import type { Product } from "../../src/lib/types.ts"
 
 const product = (extra: Partial<Product> = {}): Product => ({
@@ -38,4 +38,17 @@ test("o JSON do script nunca fecha a tag nem quebra com títulos hostis", () => 
   assert.ok(!out.includes("</script>"))
   assert.ok(!out.includes("<"))
   assert.equal(JSON.parse(out).name, '</script><script>alert(1)</script> "x"')
+})
+
+test("BreadcrumbList numera os níveis a partir de 1 e usa URLs absolutas", () => {
+  const data = breadcrumbJsonLd([["Início", "/"], ["Casa", "/categoria/casa"]], "https://e-zoom.vercel.app")
+  assert.deepEqual(
+    data.itemListElement.map((i) => [i.position, i.item]),
+    [[1, "https://e-zoom.vercel.app/"], [2, "https://e-zoom.vercel.app/categoria/casa"]],
+  )
+})
+
+test("ItemList aponta para a página de cada oferta, na ordem recebida", () => {
+  const data = itemListJsonLd([{ id: "a", title: "A" }, { id: "b", title: "B" }], "https://x.test")
+  assert.deepEqual(data.itemListElement.map((i) => i.url), ["https://x.test/produto/a", "https://x.test/produto/b"])
 })

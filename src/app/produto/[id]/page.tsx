@@ -11,7 +11,7 @@ import { ALL_PRODUCTS, CATEGORIES, getProductOffers, STORES } from "@/lib/mock-d
 import type { Product } from "@/lib/types"
 import { formatCurrency } from "@/lib/utils"
 import { getClosedOffer, getOffer, getOfferImages, getPriceStats, getRelated, getSiblings, getTopDiscountIds } from "@/lib/offers"
-import { productJsonLd, serializeJsonLd } from "@/lib/structured-data"
+import { breadcrumbJsonLd, productJsonLd, serializeJsonLd } from "@/lib/structured-data"
 
 const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://e-zoom.vercel.app"
 
@@ -120,10 +120,29 @@ export default async function ProdutoPage({
     <main id="conteudo" className="min-h-screen bg-background">
       {/* Structured data only for real offers, never for the sample catalogue. */}
       {isLive && (
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: serializeJsonLd(productJsonLd(product, SITE)) }}
-        />
+        <>
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: serializeJsonLd(productJsonLd(product, SITE)) }}
+          />
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+              __html: serializeJsonLd(
+                breadcrumbJsonLd(
+                  [
+                    ["Início", "/"],
+                    ...(CATEGORIES.find((c) => c.slug === product.category)
+                      ? [[CATEGORIES.find((c) => c.slug === product.category)!.name, `/categoria/${product.category}`] as [string, string]]
+                      : []),
+                    [product.title, `/produto/${product.id}`] as [string, string],
+                  ],
+                  SITE,
+                ),
+              ),
+            }}
+          />
+        </>
       )}
       <ProductDetail product={product} offers={offers} stats={stats} history={history} images={images} />
       {/* Comments need a real offer row (a uuid in the database); the sample catalogue has none. */}
