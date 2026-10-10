@@ -39,7 +39,14 @@ const TOOL_TERMS = [
 ]
 /** Thin categories get a catalog search too (best sellers alone give about 60); ML_ONLY=<slug> runs just one. */
 const CATEGORY_TERMS: Record<string, string[]> = {
-  celulares: ["smartphone", "iphone", "samsung galaxy", "xiaomi redmi", "motorola moto g", "carregador portátil", "capa para celular", "película de vidro", "fone bluetooth", "cabo usb c"],
+  celulares: [
+    "iphone 17", "iphone 16", "iphone 15", "iphone 14", "iphone 13", "iphone 12", "iphone 11",
+    "samsung galaxy s25", "samsung galaxy s24", "samsung galaxy a55", "samsung galaxy a35", "samsung galaxy a16", "samsung galaxy a06",
+    "redmi note 14", "redmi note 13", "redmi 14c", "redmi 13c", "poco x7", "xiaomi smartphone",
+    "motorola edge", "moto g85", "moto g55", "moto g35", "moto g15", "motorola moto e",
+    "realme c75", "realme 14", "realme smartphone", "google pixel 9", "google pixel 8a", "smartphone",
+    "carregador portátil", "capa para celular", "película de vidro",
+  ],
   informatica: ["notebook", "ssd", "memória ram", "mouse sem fio", "teclado mecânico", "monitor", "roteador wifi", "webcam", "hd externo", "pen drive", "impressora", "tablet"],
   eletrodomesticos: [
     "air fryer", "liquidificador", "aspirador de pó", "cafeteira", "micro-ondas", "geladeira", "fogão", "lava e seca",

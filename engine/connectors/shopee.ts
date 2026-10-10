@@ -11,7 +11,7 @@ const MAX_OFFERS = 4500 // every category (about 3.5k after the quality filter);
 /** Best sellers per search term, filed under the site's own category slugs. */
 const KEYWORDS: Record<string, string[]> = {
   eletronicos: ["fone bluetooth", "carregador turbo", "smartwatch", "caixa de som bluetooth", "cabo usb c"],
-  celulares: ["smartphone", "capa celular", "pelicula celular", "suporte celular", "carregador portatil"],
+  celulares: ["smartphone", "iphone", "samsung galaxy", "redmi", "xiaomi", "motorola moto", "realme", "google pixel", "capa celular", "pelicula celular", "carregador portatil"],
   informatica: ["mouse sem fio", "teclado", "webcam", "hd externo", "pen drive", "roteador wifi"],
   eletrodomesticos: ["liquidificador", "cafeteira", "aspirador de po", "ferro de passar", "ventilador", "forno eletrico", "batedeira", "chaleira eletrica", "sanduicheira", "panela eletrica"],
   casa: ["air fryer", "organizador casa", "luminaria led", "panela antiaderente", "estante", "sapateira", "rack tv", "escrivaninha", "guarda roupa", "cadeira escritorio"],

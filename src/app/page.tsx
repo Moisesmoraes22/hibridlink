@@ -30,6 +30,11 @@ const DROP_WINDOW_H = 48
 const plain = (text: string) => text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase()
 const TOOL_KIT = /furadeira|parafusadeira|esmerilhadeira|serra|martelete|lixadeira|kit|maleta|jogo de/
 const NOT_TOY = /cesto|organizador|caixa organizadora|armario|prateleira|nicho/
+/** A phone names itself first ("Smartphone Motorola...", "Galaxy A55..."): a word further on is just a mention. */
+const startsWithPhone = (title: string) => PHONE.test(plain(title).split(/\s+/).slice(0, 3).join(" "))
+/** Words of a real phone, and of everything that is only for a phone (cases, chargers, films...). */
+const PHONE = /smartphone|celular|iphone|galaxy|redmi|xiaomi|poco|moto g|moto e|motorola|edge|realme|pixel|tecno|oppo|infinix|honor|nokia|zte/
+const PHONE_ACCESSORY = /capa|case|capinha|pelicula|carregador|cabo|suporte|fone|fonte|adaptador|bateria|pulseira|protetor|lente|anel|cordao|tripe|gimbal|kit|fita|vidro|hidrogel|dock|hub|usb|otg|pop ?socket|tablet|smartwatch|relogio/
 const isKidsDay = (now: Date) => now.getMonth() === 9 && now.getDate() <= 13
 
 interface Shelf {
@@ -41,6 +46,8 @@ interface Shelf {
   first?: RegExp
   /** Titles matching this are never shown on the shelf. */
   not?: RegExp
+  /** Only titles for which this is true are shown (a shelf of one kind of product inside a mixed category). */
+  only?: (title: string) => boolean
 }
 
 /**
@@ -137,11 +144,16 @@ const SHELVES: Shelf[] = [
     slug: "celulares",
     title: "Celulares",
     linkLabel: "Ver todos os celulares",
+    // The category also holds cases, chargers and films: the shelf is for the phones themselves.
+    only: startsWithPhone,
+    not: PHONE_ACCESSORY,
     chips: [
       { label: "Samsung", q: "samsung" },
-      { label: "Motorola", q: "motorola" },
-      { label: "Xiaomi", q: "xiaomi" },
       { label: "iPhone", q: "iphone" },
+      { label: "Redmi", q: "redmi" },
+      { label: "Motorola", q: "motorola" },
+      { label: "Realme", q: "realme" },
+      { label: "Google Pixel", q: "google pixel" },
     ],
   },
   {
@@ -205,7 +217,13 @@ function pickDrops(products: Product[], skip: Set<string>, now = Date.now()): Pr
 /** A category's best offers (stores mixed), skipping what is already on a shelf. */
 function pickShelf(products: Product[], shelf: Shelf, skip: Set<string>): Product[] {
   const ranked = byRelevance(
-    products.filter((p) => p.category === shelf.slug && !skip.has(p.id) && !(shelf.not && shelf.not.test(plain(p.title)))),
+    products.filter(
+      (p) =>
+        p.category === shelf.slug &&
+        !skip.has(p.id) &&
+        !(shelf.not && shelf.not.test(plain(p.title))) &&
+        (!shelf.only || shelf.only(p.title)),
+    ),
   )
   const { first } = shelf
   if (first) ranked.sort((a, b) => Number(first.test(plain(b.title))) - Number(first.test(plain(a.title))))
