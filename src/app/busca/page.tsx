@@ -8,7 +8,7 @@ import { getCatalog } from "@/lib/offers"
 export const metadata = {
   title: "Buscar ofertas",
   description:
-    "Pesquise ofertas do Mercado Livre e da Amazon, filtre por categoria, loja, preço e desconto.",
+    "Pesquise ofertas do Mercado Livre, da Shopee e da Amazon, filtre por categoria, loja, preço e desconto.",
 }
 
 export const revalidate = 300

@@ -28,7 +28,7 @@ export async function generateMetadata({
     title: `Ofertas de ${category.name}`,
     description:
       live && count > 0
-        ? `${count} ${count === 1 ? "oferta" : "ofertas"} de ${category.name} do Mercado Livre e da Amazon, com preço, desconto e histórico.`
+        ? `${count} ${count === 1 ? "oferta" : "ofertas"} de ${category.name} do Mercado Livre, da Shopee e da Amazon, com preço, desconto e histórico.`
         : `Ofertas de ${category.name} nas lojas parceiras do E-Zoom.`,
   }
 }
