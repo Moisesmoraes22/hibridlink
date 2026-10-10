@@ -58,7 +58,7 @@ export function ProductCard({
       )}
     >
       <div className={cn("flex items-center gap-2 pr-14", compact ? "px-3 pt-3" : "px-4 pt-4")}>
-        <StoreLogo store={product.store} className="h-6 w-10 rounded-md p-0.5" />
+        <StoreLogo store={product.store} />
         <span className="truncate text-xs font-semibold text-muted-foreground">{store.name}</span>
       </div>
 

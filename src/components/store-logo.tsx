@@ -2,26 +2,49 @@ import type { StoreSource } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
 /**
- * Each store's own logo on its own background tile (the logos have dark text, so they would
- * vanish on the dark theme without the tile). Decorative: the store name is always next to it.
+ * Each store's mark, small, next to its name (as in the visual references): the Amazon "a" with
+ * its smile, the Shopee bag, and Mercado Livre's wordmark on its yellow badge. Decorative: the
+ * store name is always written next to it. In the dark theme the dark marks sit on a white chip.
  */
-const LOGOS: Partial<Record<StoreSource, { src: string; bg: string }>> = {
-  mercado_livre: { src: "/lojas/mercado-livre.svg", bg: "#FFE600" },
-  shopee: { src: "/lojas/shopee.svg", bg: "#FFFFFF" },
-  // Amazon on purpose without a logo until the Associates programme rules are checked.
+const MARKS: Partial<Record<StoreSource, { src: string; yellow?: boolean }>> = {
+  mercado_livre: { src: "/lojas/mercado-livre.svg", yellow: true },
+  shopee: { src: "/lojas/shopee-icon.svg" },
+  amazon: { src: "/lojas/amazon-icon.svg" },
 }
 
-export function StoreLogo({ store, className }: { store: StoreSource; className?: string }) {
-  const logo = LOGOS[store]
-  if (!logo) return null
+const HEIGHT = { sm: "h-6", md: "h-8" } as const
+
+export function StoreLogo({
+  store,
+  className,
+  size = "sm",
+}: {
+  store: StoreSource
+  className?: string
+  size?: keyof typeof HEIGHT
+}) {
+  const mark = MARKS[store]
+  if (!mark) return null
   return (
     <span
       aria-hidden
-      className={cn("flex shrink-0 items-center justify-center rounded-lg border border-black/10 p-1", className)}
-      style={{ backgroundColor: logo.bg }}
+      className={cn(
+        "flex shrink-0 items-center justify-center",
+        HEIGHT[size],
+        mark.yellow
+          ? "w-10 rounded-full bg-[#FFE600] px-1.5"
+          : "rounded-md px-0.5 dark:bg-white dark:px-1",
+        className,
+      )}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={logo.src} alt="" className="h-full w-full object-contain" loading="lazy" decoding="async" />
+      <img
+        src={mark.src}
+        alt=""
+        className={cn("w-auto object-contain", mark.yellow ? "h-4" : "h-full py-0.5")}
+        loading="lazy"
+        decoding="async"
+      />
     </span>
   )
 }

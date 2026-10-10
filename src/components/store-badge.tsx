@@ -3,7 +3,7 @@ import { STORES } from "@/lib/mock-data"
 import type { StoreSource } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
-const STORE_HAS_LOGO: StoreSource[] = ["mercado_livre", "shopee"]
+const STORE_HAS_LOGO: StoreSource[] = ["mercado_livre", "shopee", "amazon"]
 
 export function StoreBadge({
   store,
@@ -25,7 +25,7 @@ export function StoreBadge({
         )}
       >
         {STORE_HAS_LOGO.includes(store) ? (
-          <StoreLogo store={store} className="h-6 w-10 rounded-md p-0.5" />
+          <StoreLogo store={store} />
         ) : (
           <span
             className="h-1.5 w-1.5 shrink-0 rounded-full"
