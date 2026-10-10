@@ -2,17 +2,17 @@ import type { Metadata } from "next"
 
 import { CategoryGrid } from "@/components/category-grid"
 import { CouponsSection } from "@/components/coupons-section"
-import { InterestsSection } from "@/components/interests-section"
-import { ProductRow } from "@/components/product-row"
-import { StoresSection } from "@/components/stores-section"
 import { FeaturedOffers } from "@/components/featured-offers"
 import { HomeHero } from "@/components/home-hero"
 import { HowToBuy } from "@/components/how-to-buy"
+import { InterestsSection } from "@/components/interests-section"
 import { PriceChips } from "@/components/price-chips"
+import { ProductRow } from "@/components/product-row"
 import { SiteFooter } from "@/components/site-footer"
 import { StoreStrip } from "@/components/store-strip"
-import { byClicks, byFeatured, byRelevance, categoryCounts, countByStoreId } from "@/lib/deals"
+import { StoresSection } from "@/components/stores-section"
 import { getCoupons } from "@/lib/coupons"
+import { byClicks, byFeatured, byRelevance, categoryCounts, countByStoreId } from "@/lib/deals"
 import { getCatalog } from "@/lib/offers"
 import type { Product } from "@/lib/types"
 
@@ -21,6 +21,156 @@ export const revalidate = 300
 export const metadata: Metadata = { alternates: { canonical: "/" } }
 
 const FEATURED = 4
+const SHELF = 4
+const ROW_SIZE = 12
+/** A shelf this short looks abandoned: it shows from this many offers on, else not at all. */
+const SHELF_MIN = 3
+const DROP_WINDOW_H = 48
+
+const plain = (text: string) => text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase()
+const TOOL_KIT = /furadeira|parafusadeira|esmerilhadeira|serra|martelete|lixadeira|kit|maleta|jogo de/
+const NOT_TOY = /cesto|organizador|caixa organizadora|armario|prateleira|nicho/
+const isKidsDay = (now: Date) => now.getMonth() === 9 && now.getDate() <= 13
+
+interface Shelf {
+  slug: string
+  title: string
+  linkLabel: string
+  chips: { label: string; q: string }[]
+  /** Titles matching this come first (the higher-ticket kind of the category). */
+  first?: RegExp
+  /** Titles matching this are never shown on the shelf. */
+  not?: RegExp
+}
+
+/**
+ * The shelves, in the order of what people buy most online (electronics, fashion, food and drink,
+ * DIY and tools, furniture, media, beauty, toys). Only categories the site really has appear, and
+ * each one only when it has offers. Cellphones and supplements follow, as asked.
+ */
+const SHELVES: Shelf[] = [
+  {
+    slug: "eletronicos",
+    title: "Eletrônicos",
+    linkLabel: "Ver todos os eletrônicos",
+    chips: [
+      { label: "Fone de ouvido", q: "fone" },
+      { label: "Smart TV", q: "smart tv" },
+      { label: "Caixa de som", q: "caixa de som" },
+      { label: "Carregador", q: "carregador" },
+    ],
+  },
+  {
+    slug: "moda",
+    title: "Moda e vestuário",
+    linkLabel: "Ver toda a moda",
+    chips: [
+      { label: "Tênis", q: "tenis" },
+      { label: "Camiseta", q: "camiseta" },
+      { label: "Mochila", q: "mochila" },
+      { label: "Jaqueta", q: "jaqueta" },
+    ],
+  },
+  {
+    slug: "alimentos-bebidas",
+    title: "Alimentos e bebidas",
+    linkLabel: "Ver alimentos e bebidas",
+    chips: [
+      { label: "Café", q: "cafe" },
+      { label: "Chocolate", q: "chocolate" },
+      { label: "Azeite", q: "azeite" },
+    ],
+  },
+  {
+    slug: "ferramentas",
+    title: "Ferramentas",
+    linkLabel: "Ver todas as ferramentas",
+    first: TOOL_KIT,
+    chips: [
+      { label: "Furadeira", q: "furadeira" },
+      { label: "Parafusadeira", q: "parafusadeira" },
+      { label: "Kit de ferramentas", q: "kit ferramentas" },
+      { label: "Esmerilhadeira", q: "esmerilhadeira" },
+    ],
+  },
+  {
+    slug: "casa",
+    title: "Casa, móveis e decoração",
+    linkLabel: "Ver tudo para a casa",
+    chips: [
+      { label: "Sofá", q: "sofa" },
+      { label: "Cadeira", q: "cadeira" },
+      { label: "Colchão", q: "colchao" },
+      { label: "Mesa", q: "mesa" },
+    ],
+  },
+  {
+    slug: "livros",
+    title: "Livros",
+    linkLabel: "Ver todos os livros",
+    chips: [],
+  },
+  {
+    slug: "beleza",
+    title: "Beleza e cuidados pessoais",
+    linkLabel: "Ver toda a beleza",
+    chips: [
+      { label: "Perfume", q: "perfume" },
+      { label: "Shampoo", q: "shampoo" },
+      { label: "Maquiagem", q: "maquiagem" },
+      { label: "Barbeador", q: "barbeador" },
+    ],
+  },
+  {
+    slug: "brinquedos",
+    title: "Brinquedos e hobbies",
+    linkLabel: "Ver todos os brinquedos",
+    not: NOT_TOY,
+    chips: [
+      { label: "Bonecas", q: "boneca" },
+      { label: "Lego", q: "lego" },
+      { label: "Hot Wheels", q: "hot wheels" },
+      { label: "Quebra-cabeça", q: "quebra-cabeca" },
+    ],
+  },
+  {
+    slug: "celulares",
+    title: "Celulares",
+    linkLabel: "Ver todos os celulares",
+    chips: [
+      { label: "Samsung", q: "samsung" },
+      { label: "Motorola", q: "motorola" },
+      { label: "Xiaomi", q: "xiaomi" },
+      { label: "iPhone", q: "iphone" },
+    ],
+  },
+  {
+    slug: "suplementos",
+    title: "Suplementos",
+    linkLabel: "Ver todos os suplementos",
+    chips: [
+      { label: "Whey protein", q: "whey" },
+      { label: "Creatina", q: "creatina" },
+      { label: "Pré-treino", q: "pre treino" },
+      { label: "Vitaminas", q: "vitamina" },
+    ],
+  },
+]
+
+/** Children's Day (1 to 13 October): the toys shelf takes this name and chips, then goes back by itself. */
+const KIDS_SHELF = {
+  title: "Dia das Crianças",
+  chips: [
+    { label: "Bonecas", q: "boneca" },
+    { label: "Lego", q: "lego" },
+    { label: "Hot Wheels", q: "hot wheels" },
+    { label: "Quebra-cabeça", q: "quebra-cabeca" },
+    { label: "Pelúcias", q: "pelucia" },
+  ],
+}
+
+/** The categories highlighted at the top, in the same order as the shelves. */
+const HIGHLIGHT = ["eletronicos", "moda", "alimentos-bebidas", "ferramentas", "casa", "livros", "beleza", "brinquedos"]
 
 /**
  * Four offers for the main shelf: the best-ranked among those with a recorded discount or a price
@@ -43,36 +193,23 @@ function pickFeatured(products: Product[]): Product[] {
   return picked
 }
 
-const SHELF = 4
-const KIDS_SIZE = 12
-const NOT_TOY = /cesto|organizador|caixa organizadora|armario|prateleira|nicho/
-const plain = (text: string) => text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase()
-const isKidsDay = (now: Date) => now.getMonth() === 9 && now.getDate() <= 13
-
-const TOOL_KIT = /furadeira|parafusadeira|esmerilhadeira|serra|martelete|lixadeira|kit|maleta|jogo de/
-const ALL_SIZE = 12
-
-/** A category's best offers (stores mixed), skipping what is already on a shelf; `first` lifts some to the top. */
-function pickCategory(products: Product[], slug: string, skip: Set<string>, first?: RegExp): Product[] {
-  const ranked = byRelevance(products.filter((p) => p.category === slug && !skip.has(p.id)))
-  if (first) ranked.sort((a, b) => Number(first.test(plain(b.title))) - Number(first.test(plain(a.title))))
-  return ranked.slice(0, ALL_SIZE)
-}
-
-/** The best toys (storage furniture is not a toy), stores mixed, never repeating what is already on a shelf. */
-const pickKids = (products: Product[], skip: Set<string>) =>
-  byRelevance(products.filter((p) => p.category === "brinquedos" && !skip.has(p.id) && !NOT_TOY.test(plain(p.title)))).slice(0, KIDS_SIZE)
-/** A shelf this short looks abandoned: it shows from this many offers on, else not at all. */
-const SHELF_MIN = 3
-const DROP_WINDOW_H = 48
-
-/** Real price drops (recorded) seen in the last two days, biggest drop first, never repeating a featured offer. */
+/** Real price drops (recorded) seen in the last two days, biggest drop first. */
 function pickDrops(products: Product[], skip: Set<string>, now = Date.now()): Product[] {
   const drop = (p: Product) => (p.priceHistory ? 1 - p.price / p.priceHistory.at(-2)! : 0)
   return products
     .filter((p) => !skip.has(p.id) && p.isPriceDrop && p.dropAt && now - Date.parse(p.dropAt) < DROP_WINDOW_H * 3_600_000)
     .sort((a, b) => drop(b) - drop(a))
     .slice(0, SHELF)
+}
+
+/** A category's best offers (stores mixed), skipping what is already on a shelf. */
+function pickShelf(products: Product[], shelf: Shelf, skip: Set<string>): Product[] {
+  const ranked = byRelevance(
+    products.filter((p) => p.category === shelf.slug && !skip.has(p.id) && !(shelf.not && shelf.not.test(plain(p.title)))),
+  )
+  const { first } = shelf
+  if (first) ranked.sort((a, b) => Number(first.test(plain(b.title))) - Number(first.test(plain(a.title))))
+  return ranked.slice(0, ROW_SIZE)
 }
 
 export default async function Home() {
@@ -83,82 +220,34 @@ export default async function Home() {
   drops.forEach((p) => shown.add(p.id))
   // Only what visitors really opened (3+ clicks); with little traffic the shelf simply does not appear.
   const popular = live ? byClicks(products.filter((p) => !shown.has(p.id))).slice(0, SHELF) : []
+  popular.forEach((p) => shown.add(p.id))
 
-  // Children's Day (12 Oct): shown from 1 to 13 October, then it disappears by itself.
-  const kids = isKidsDay(new Date()) ? pickKids(products, shown) : []
-  kids.forEach((p) => shown.add(p.id))
-  // Power tools and kits first (the higher-ticket ones), then the rest by relevance.
-  const tools = live ? pickCategory(products, "ferramentas", shown, TOOL_KIT) : []
-  tools.forEach((p) => shown.add(p.id))
-  const phones = live ? pickCategory(products, "celulares", shown) : []
-  phones.forEach((p) => shown.add(p.id))
-  const supplements = live ? pickCategory(products, "suplementos", shown) : []
-  supplements.forEach((p) => shown.add(p.id))
+  const kidsSeason = isKidsDay(new Date())
+  const rows = live
+    ? SHELVES.map((shelf) => {
+        const items = pickShelf(products, shelf, shown)
+        items.forEach((p) => shown.add(p.id))
+        const seasonal = kidsSeason && shelf.slug === "brinquedos"
+        return {
+          ...shelf,
+          title: seasonal ? KIDS_SHELF.title : shelf.title,
+          chips: seasonal ? KIDS_SHELF.chips : shelf.chips,
+          items,
+        }
+      }).filter((row) => row.items.length >= SHELF_MIN)
+    : []
+
+  const highlighted = categoryCounts(products, true)
+    .filter((c) => HIGHLIGHT.includes(c.slug))
+    .sort((a, b) => HIGHLIGHT.indexOf(a.slug) - HIGHLIGHT.indexOf(b.slug))
   const coupons = await getCoupons(3)
   const storeCounts = countByStoreId(products)
 
   return (
     <main id="conteudo" className="bg-background">
       <HomeHero />
-      <StoreStrip counts={countByStoreId(products)} />
+      <StoreStrip counts={storeCounts} />
       <FeaturedOffers offers={featured} />
-      {kids.length >= SHELF_MIN && (
-        <ProductRow
-          title="Dia das Crianças"
-          products={kids}
-          href="/categoria/brinquedos"
-          linkLabel="Ver todos os brinquedos"
-          chips={[
-            { label: "Bonecas", href: "/busca?q=boneca" },
-            { label: "Lego", href: "/busca?q=lego" },
-            { label: "Hot Wheels", href: "/busca?q=hot%20wheels" },
-            { label: "Quebra-cabeça", href: "/busca?q=quebra-cabeca" },
-            { label: "Pelúcias", href: "/busca?q=pelucia" },
-          ]}
-        />
-      )}
-      {tools.length >= SHELF_MIN && (
-        <ProductRow
-          title="Ferramentas"
-          products={tools}
-          href="/categoria/ferramentas"
-          linkLabel="Ver todas as ferramentas"
-          chips={[
-            { label: "Furadeira", href: "/busca?q=furadeira" },
-            { label: "Parafusadeira", href: "/busca?q=parafusadeira" },
-            { label: "Kit de ferramentas", href: "/busca?q=kit%20ferramentas" },
-            { label: "Esmerilhadeira", href: "/busca?q=esmerilhadeira" },
-          ]}
-        />
-      )}
-      {phones.length >= SHELF_MIN && (
-        <ProductRow
-          title="Celulares"
-          products={phones}
-          href="/categoria/celulares"
-          linkLabel="Ver todos os celulares"
-          chips={[
-            { label: "Samsung", href: "/busca?q=samsung" },
-            { label: "Motorola", href: "/busca?q=motorola" },
-            { label: "Xiaomi", href: "/busca?q=xiaomi" },
-            { label: "iPhone", href: "/busca?q=iphone" },
-          ]}
-        />
-      )}
-      {supplements.length >= SHELF_MIN && (
-        <ProductRow
-          title="Suplementos"
-          products={supplements}
-          href="/categoria/suplementos"
-          linkLabel="Ver todos os suplementos"
-          chips={[
-            { label: "Whey protein", href: "/busca?q=whey" },
-            { label: "Creatina", href: "/busca?q=creatina" },
-            { label: "Pré-treino", href: "/busca?q=pre%20treino" },
-            { label: "Vitaminas", href: "/busca?q=vitamina" },
-          ]}
-        />
-      )}
       {drops.length >= SHELF_MIN && (
         <FeaturedOffers
           offers={drops}
@@ -179,7 +268,19 @@ export default async function Home() {
           linkLabel="Ver todas as ofertas"
         />
       )}
-      <CategoryGrid categories={categoryCounts(products, true).slice(0, 8)} showCounts={live} />
+      {highlighted.length >= 4 && (
+        <CategoryGrid categories={highlighted} showCounts={live} title="Categorias em destaque" />
+      )}
+      {rows.map((row) => (
+        <ProductRow
+          key={row.slug}
+          title={row.title}
+          products={row.items}
+          href={`/categoria/${row.slug}`}
+          linkLabel={row.linkLabel}
+          chips={row.chips.length === 0 ? undefined : row.chips.map((c) => ({ label: c.label, href: `/busca?q=${encodeURIComponent(c.q)}` }))}
+        />
+      ))}
       <InterestsSection products={products} />
       <CouponsSection coupons={coupons} />
       <PriceChips />

@@ -13,19 +13,21 @@ export function CategoryGrid({
   categories,
   showCounts,
   withHeader = true,
+  title = "Categorias populares",
   gridClassName = "grid-cols-2 sm:grid-cols-4 lg:grid-cols-8",
 }: {
   categories: CategoryCount[]
   showCounts: boolean
   /** Off on /categorias, where the page has its own h1. */
   withHeader?: boolean
+  title?: string
   gridClassName?: string
 }) {
   return (
     <section className="page-container section-y">
       {withHeader && (
         <SectionHeader
-          title="Categorias populares"
+          title={title}
           href="/categorias"
           linkLabel="Ver todas as categorias"
         />
