@@ -40,7 +40,10 @@ const TOOL_TERMS = [
 /** Thin categories get a catalog search too (best sellers alone give about 60); ML_ONLY=<slug> runs just one. */
 const CATEGORY_TERMS: Record<string, string[]> = {
   celulares: [
-    "iphone 17", "iphone 16", "iphone 15", "iphone 14", "iphone 13", "iphone 12", "iphone 11",
+    "iphone 17", "iphone 17 pro", "iphone 17 pro max", "iphone 17 air", "iphone 16", "iphone 16 pro", "iphone 16 pro max",
+    "iphone 16 plus", "iphone 16e", "iphone 15", "iphone 15 pro", "iphone 15 pro max", "iphone 15 plus", "iphone 14",
+    "iphone 14 pro", "iphone 14 plus", "iphone 13", "iphone 13 mini", "iphone 12", "iphone 12 pro", "iphone 11",
+    "iphone se", "iphone xr", "iphone 8", "apple iphone",
     "samsung galaxy s25", "samsung galaxy s24", "samsung galaxy a55", "samsung galaxy a35", "samsung galaxy a16", "samsung galaxy a06",
     "redmi note 14", "redmi note 13", "redmi 14c", "redmi 13c", "poco x7", "xiaomi smartphone",
     "motorola edge", "moto g85", "moto g55", "moto g35", "moto g15", "motorola moto e",
