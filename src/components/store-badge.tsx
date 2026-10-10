@@ -3,7 +3,7 @@ import { STORES } from "@/lib/mock-data"
 import type { StoreSource } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
-const STORE_HAS_LOGO: StoreSource[] = ["mercado_livre", "shopee", "amazon"]
+const STORE_HAS_LOGO: StoreSource[] = ["mercado_livre", "shopee"]
 
 export function StoreBadge({
   store,

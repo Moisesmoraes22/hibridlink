@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils"
 const LOGOS: Partial<Record<StoreSource, { src: string; bg: string }>> = {
   mercado_livre: { src: "/lojas/mercado-livre.svg", bg: "#FFE600" },
   shopee: { src: "/lojas/shopee.svg", bg: "#FFFFFF" },
-  amazon: { src: "/lojas/amazon.svg", bg: "#FFFFFF" },
+  // Amazon on purpose without a logo until the Associates programme rules are checked.
 }
 
 export function StoreLogo({ store, className }: { store: StoreSource; className?: string }) {
