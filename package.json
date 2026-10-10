@@ -9,6 +9,7 @@
     "lint": "eslint",
     "engine:ml": "node --env-file=.env.local engine/run.ts mercadolivre",
     "engine:tg": "node --env-file=.env.local engine/run.ts telegram",
+    "engine:pedidos": "node --env-file=.env.local engine/requests.ts",
     "engine:cupons": "node --env-file=.env.local engine/coupons.ts",
     "engine:tg-login": "node --env-file=.env.local engine/telegram-login.ts",
     "engine:audit": "node --env-file=.env.local engine/audit-categories.ts",

@@ -96,6 +96,27 @@ jobs:
           TELEGRAM_COUPON_INVITE: ${{ secrets.TELEGRAM_COUPON_INVITE }}
           ML_AFFILIATE_URL_TEMPLATE: "{url}?matt_tool=36590912&matt_word=moraesmoises20230303173936"
 
+  # Products visitors searched for and did not find ("Pedir este produto" button): searches the
+  # Mercado Livre catalogue for the most requested terms and brings the offers in.
+  pedidos:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: node engine/requests.ts
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          ML_CLIENT_ID: ${{ secrets.ML_CLIENT_ID }}
+          ML_CLIENT_SECRET: ${{ secrets.ML_CLIENT_SECRET }}
+          ML_AFFILIATE_URL_TEMPLATE: "{url}?matt_tool=36590912&matt_word=moraesmoises20230303173936"
+
   # After both collections: fixes known category mistakes still in the catalog and lists the
   # new suspicious ones in this run's summary (Actions tab) for a human to review.
   revisao:
