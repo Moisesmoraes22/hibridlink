@@ -173,8 +173,20 @@ const visible = <T extends { eq: any; not: any }>(q: T): T =>
  * queries run in parallel instead of the whole catalogue. Falls back to the catalogue only
  * when the database is not configured (sample data).
  */
-export const getSiteSummary = cache(
-  async (): Promise<{ categories: CategoryCount[]; stores: Record<string, number>; live: boolean }> => {
+type SiteSummary = { categories: CategoryCount[]; stores: Record<string, number>; live: boolean }
+/** Kept per server process for 5 minutes: the header and footer ask on every page, and counts move slowly. */
+let summaryMemo: { at: number; value: SiteSummary } | null = null
+const SUMMARY_TTL_MS = 5 * 60_000
+
+export const getSiteSummary = cache(async (): Promise<SiteSummary> => {
+  if (summaryMemo && Date.now() - summaryMemo.at < SUMMARY_TTL_MS) return summaryMemo.value
+  const value = await computeSiteSummary()
+  if (value.live) summaryMemo = { at: Date.now(), value }
+  return value
+})
+
+async function computeSiteSummary(): Promise<SiteSummary> {
+  {
     const supabase = lightClient()
     if (supabase) {
       const count = (column: string, value: string) =>
@@ -195,8 +207,8 @@ export const getSiteSummary = cache(
     }
     const { products, live } = await getCatalog()
     return { categories: categoryCounts(products), stores: countByStoreId(products), live }
-  },
-)
+  }
+}
 
 /**
  * One offer by id, with its recent prices (for the "price dropped" marker). Null when it does
