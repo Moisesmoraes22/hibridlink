@@ -49,6 +49,16 @@ const NOT_TOY = /cesto|organizador|caixa organizadora|armario|prateleira|nicho/
 const plain = (text: string) => text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase()
 const isKidsDay = (now: Date) => now.getMonth() === 9 && now.getDate() <= 13
 
+const TOOL_KIT = /furadeira|parafusadeira|esmerilhadeira|serra|martelete|lixadeira|kit|maleta|jogo de/
+const ALL_SIZE = 12
+
+/** A category's best offers (stores mixed), skipping what is already on a shelf; `first` lifts some to the top. */
+function pickCategory(products: Product[], slug: string, skip: Set<string>, first?: RegExp): Product[] {
+  const ranked = byRelevance(products.filter((p) => p.category === slug && !skip.has(p.id)))
+  if (first) ranked.sort((a, b) => Number(first.test(plain(b.title))) - Number(first.test(plain(a.title))))
+  return ranked.slice(0, ALL_SIZE)
+}
+
 /** The best toys (storage furniture is not a toy), stores mixed, never repeating what is already on a shelf. */
 const pickKids = (products: Product[], skip: Set<string>) =>
   byRelevance(products.filter((p) => p.category === "brinquedos" && !skip.has(p.id) && !NOT_TOY.test(plain(p.title)))).slice(0, KIDS_SIZE)
@@ -77,6 +87,13 @@ export default async function Home() {
   // Children's Day (12 Oct): shown from 1 to 13 October, then it disappears by itself.
   const kids = isKidsDay(new Date()) ? pickKids(products, shown) : []
   kids.forEach((p) => shown.add(p.id))
+  // Power tools and kits first (the higher-ticket ones), then the rest by relevance.
+  const tools = live ? pickCategory(products, "ferramentas", shown, TOOL_KIT) : []
+  tools.forEach((p) => shown.add(p.id))
+  const phones = live ? pickCategory(products, "celulares", shown) : []
+  phones.forEach((p) => shown.add(p.id))
+  const supplements = live ? pickCategory(products, "suplementos", shown) : []
+  supplements.forEach((p) => shown.add(p.id))
   const coupons = await getCoupons(3)
   const storeCounts = countByStoreId(products)
 
@@ -97,6 +114,48 @@ export default async function Home() {
             { label: "Hot Wheels", href: "/busca?q=hot%20wheels" },
             { label: "Quebra-cabeça", href: "/busca?q=quebra-cabeca" },
             { label: "Pelúcias", href: "/busca?q=pelucia" },
+          ]}
+        />
+      )}
+      {tools.length >= SHELF_MIN && (
+        <ProductRow
+          title="Ferramentas"
+          products={tools}
+          href="/categoria/ferramentas"
+          linkLabel="Ver todas as ferramentas"
+          chips={[
+            { label: "Furadeira", href: "/busca?q=furadeira" },
+            { label: "Parafusadeira", href: "/busca?q=parafusadeira" },
+            { label: "Kit de ferramentas", href: "/busca?q=kit%20ferramentas" },
+            { label: "Esmerilhadeira", href: "/busca?q=esmerilhadeira" },
+          ]}
+        />
+      )}
+      {phones.length >= SHELF_MIN && (
+        <ProductRow
+          title="Celulares"
+          products={phones}
+          href="/categoria/celulares"
+          linkLabel="Ver todos os celulares"
+          chips={[
+            { label: "Samsung", href: "/busca?q=samsung" },
+            { label: "Motorola", href: "/busca?q=motorola" },
+            { label: "Xiaomi", href: "/busca?q=xiaomi" },
+            { label: "iPhone", href: "/busca?q=iphone" },
+          ]}
+        />
+      )}
+      {supplements.length >= SHELF_MIN && (
+        <ProductRow
+          title="Suplementos"
+          products={supplements}
+          href="/categoria/suplementos"
+          linkLabel="Ver todos os suplementos"
+          chips={[
+            { label: "Whey protein", href: "/busca?q=whey" },
+            { label: "Creatina", href: "/busca?q=creatina" },
+            { label: "Pré-treino", href: "/busca?q=pre%20treino" },
+            { label: "Vitaminas", href: "/busca?q=vitamina" },
           ]}
         />
       )}
