@@ -136,7 +136,7 @@ export function ProductDetail({
       </nav>
 
       <div className="grid gap-6 md:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] md:gap-8">
-        <div className={cn(panel, "self-start p-3 sm:p-4 md:col-start-1 md:row-start-1")}>
+        <div className={cn(panel, "w-full max-w-[32rem] self-start justify-self-center p-3 sm:p-4 md:col-start-1 md:row-start-1 md:justify-self-start")}>
           <ProductGallery
             images={images}
             alt={product.title}
@@ -155,7 +155,7 @@ export function ProductDetail({
             {category && (
               <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{category.name}</p>
             )}
-            <h1 className="mt-1 text-xl font-extrabold leading-snug text-foreground sm:text-2xl">{product.title}</h1>
+            <h1 className="mt-1 text-lg font-bold leading-snug text-foreground sm:text-xl">{product.title}</h1>
             {product.rating && (
               <div className="mt-2 flex items-center gap-1.5 text-sm text-muted-foreground">
                 <Star className="h-4 w-4 fill-primary text-primary" aria-hidden />
@@ -177,7 +177,7 @@ export function ProductDetail({
               </p>
             </div>
 
-            <p className="mt-4 text-4xl font-extrabold tabular-nums text-price sm:text-5xl">
+            <p className="mt-4 text-3xl font-extrabold tabular-nums text-price sm:text-4xl">
               {formatCurrency(bestOffer.price)}
             </p>
 
@@ -229,7 +229,7 @@ export function ProductDetail({
             <Button
               asChild
               size="lg"
-              className="mt-6 h-14 w-full gap-2 rounded-xl bg-cta text-lg font-extrabold text-cta-foreground shadow-lg shadow-cta/30 ring-offset-2 hover:bg-cta-hover"
+              className="mt-5 h-12 w-full gap-2 rounded-lg bg-cta text-base font-bold text-cta-foreground shadow-lg shadow-cta/30 ring-offset-2 hover:bg-cta-hover"
             >
               <OfferLink product={product} store={bestOffer.store} affiliateUrl={bestOffer.affiliateUrl}>
                 Ver oferta {into} {store.name}
@@ -308,7 +308,7 @@ export function ProductDetail({
 
       <div className="mt-6 grid gap-6 md:grid-cols-2">
         <section aria-labelledby="sobre" className={cn(panel, "p-5 sm:p-6")}>
-          <h2 id="sobre" className="text-xl font-extrabold text-foreground">
+          <h2 id="sobre" className="text-lg font-bold text-foreground">
             Sobre o produto
           </h2>
           <ul className="mt-4 flex flex-col gap-2.5 text-sm text-foreground">
@@ -333,7 +333,7 @@ export function ProductDetail({
         </section>
 
         <section aria-labelledby="historico" className={cn(panel, "p-5 sm:p-6")}>
-          <h2 id="historico" className="flex items-center gap-2 text-xl font-extrabold text-foreground">
+          <h2 id="historico" className="flex items-center gap-2 text-lg font-bold text-foreground">
             <LineChart className="h-5 w-5 text-brand" aria-hidden />
             Histórico de preço
           </h2>
@@ -388,7 +388,7 @@ export function ProductDetail({
 
       {offers.length > 1 && (
         <div className="mt-8">
-          <h2 className="mb-4 text-xl font-extrabold text-foreground">Onde comprar</h2>
+          <h2 className="mb-4 text-lg font-bold text-foreground">Onde comprar</h2>
           <div className="overflow-hidden rounded-2xl border border-border">
             {offers.map((offer, index) => {
               const offerDiscount = calculateDiscountPercent(offer.price, offer.originalPrice)
