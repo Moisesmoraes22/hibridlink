@@ -14,7 +14,7 @@ export function StoreStrip({ counts }: { counts: Record<string, number> }) {
           {has("mercado_livre") && (
             <li>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/lojas/mercado-livre-logo.png" alt="Mercado Livre" className="h-9 w-auto" width={98} height={34} />
+              <img src="/lojas/mercado-livre-logo.png" alt="Mercado Livre" className="h-9 w-auto" width={142} height={36} />
             </li>
           )}
           {has("shopee") && (
