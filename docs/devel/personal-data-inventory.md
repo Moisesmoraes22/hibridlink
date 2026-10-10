@@ -22,6 +22,8 @@ Never collected: phone, address, date of birth, payment data, photo, profile tex
 | Key / cookie | Content | Purpose |
 |---|---|---|
 | `hibridlink:favorites` (localStorage) | Copies of the favorited offers (title, image, price, store, link) | Favorites for visitors; offline copy for everyone |
+| `ezoom:requests` (localStorage) | Search terms the visitor asked the site to find ("Pedir este produto") and when, up to 10, forgotten after 30 days | To tell the visitor, on a later visit, that the request was answered; never sent anywhere except the term itself |
+| `public.product_requests` (database) | The normalised search term, how many times it was requested, status. No user id, no IP, no e-mail | To decide what the collector searches next. Search terms typed by visitors are free text: do not store a term that looks like a link (the database refuses it) |
 | `hibridlink:favorites-pending` | Offer ids whose removal is not confirmed by the account yet | Do not resurrect a removed favorite during sync |
 | `hibridlink:favorites-account` | Offer ids known to be in the account | Remove the account's favorites from the device on sign-out |
 | `hl-theme`, `hl-recent-searches` | Theme choice; last search terms | Convenience |
