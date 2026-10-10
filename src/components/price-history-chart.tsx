@@ -25,11 +25,13 @@ export function PriceHistoryChart({ stats, now }: { stats: PriceStats; now: numb
   }
   d += ` H100`
 
-  const refs = [
-    { label: "Maior", value: stats.max, line: "text-muted-foreground", dash: true },
-    { label: "Média", value: stats.average, line: "text-brand", dash: true },
-    { label: "Menor", value: stats.min, line: "text-success", dash: true },
-  ]
+  const showAverage = points.length >= 3
+  // Newest change first: what actually moved the price, with the day it was seen.
+  const changes = points
+    .slice(1)
+    .map((p, i) => ({ at: p.at, from: points[i].price, to: p.price }))
+    .reverse()
+    .slice(0, 4)
 
   return (
     <figure aria-label="Gráfico do histórico de preço">
@@ -42,20 +44,20 @@ export function PriceHistoryChart({ stats, now }: { stats: PriceStats; now: numb
         </span>
         <div className="relative h-full border-b border-l border-border">
           <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden className="h-full w-full overflow-visible">
-            {refs.map((r) => (
+            <path d={`${d} V100 H0 Z`} className="fill-brand/10" />
+            {showAverage && (
               <line
-                key={r.label}
                 x1="0"
                 x2="100"
-                y1={Y(r.value)}
-                y2={Y(r.value)}
+                y1={Y(stats.average)}
+                y2={Y(stats.average)}
                 stroke="currentColor"
                 strokeWidth="1.5"
                 strokeDasharray="4 4"
                 vectorEffect="non-scaling-stroke"
-                className={r.line}
+                className="text-muted-foreground"
               />
-            ))}
+            )}
             <path
               d={d}
               fill="none"
@@ -63,14 +65,14 @@ export function PriceHistoryChart({ stats, now }: { stats: PriceStats; now: numb
               strokeWidth="2.5"
               strokeLinejoin="round"
               vectorEffect="non-scaling-stroke"
-              className="text-foreground"
+              className="text-brand"
             />
           </svg>
           {points.map((p) => (
             <span
               key={p.at}
               aria-hidden
-              className="absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-card bg-foreground"
+              className="absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-card bg-brand"
               style={{ left: `${X(new Date(p.at).getTime())}%`, top: `${Y(p.price)}%` }}
             />
           ))}
@@ -80,23 +82,29 @@ export function PriceHistoryChart({ stats, now }: { stats: PriceStats; now: numb
         <span>{day(points[0].at)}</span>
         <span>hoje</span>
       </div>
-      <figcaption className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-        <span className="flex items-center gap-1.5">
-          <span aria-hidden className="h-0.5 w-4 bg-foreground" />
-          Preço
-        </span>
-        {refs
-          .slice()
-          .reverse()
-          .map((r) => (
-            <span key={r.label} className="flex items-center gap-1.5">
-              <span aria-hidden className={`h-0 w-4 border-t-2 border-dashed border-current ${r.line}`} />
-              <span className="text-foreground">
-                {r.label} <span className="tabular-nums">{formatCurrency(r.value)}</span>
+      {showAverage && (
+        <figcaption className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
+          <span aria-hidden className="h-0 w-4 border-t-2 border-dashed border-current" />
+          Média do período: <span className="tabular-nums text-foreground">{formatCurrency(stats.average)}</span>
+        </figcaption>
+      )}
+      <ul className="mt-4 flex flex-col gap-1.5 border-t border-border pt-3 text-sm">
+        {changes.map((c) => {
+          const pct = Math.round(((c.to - c.from) / c.from) * 100)
+          return (
+            <li key={c.at} className="flex flex-wrap items-center justify-between gap-x-3">
+              <span className="text-muted-foreground">{day(c.at)}</span>
+              <span className="tabular-nums text-foreground">
+                {formatCurrency(c.from)} → <strong>{formatCurrency(c.to)}</strong>
               </span>
-            </span>
-          ))}
-      </figcaption>
+              <span className={`w-14 text-right font-semibold tabular-nums ${pct < 0 ? "text-success" : "text-discount"}`}>
+                {pct > 0 ? "+" : ""}
+                {pct}%
+              </span>
+            </li>
+          )
+        })}
+      </ul>
     </figure>
   )
 }
