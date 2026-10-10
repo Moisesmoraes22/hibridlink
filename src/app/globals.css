@@ -64,6 +64,11 @@
   --success: #15803d;
   /* Prices: black on light, white on dark. */
   --price: #111111;
+
+  /* redesign: hero/header blue and the dark bar of the footer */
+  --hero: #1858e4;
+  --hero-foreground: #ffffff;
+  --footer-bar: #0d2250;
 }
 
 .dark {
@@ -120,6 +125,10 @@
   --discount-foreground: #ffffff;
   --success: #4ade80;
   --price: #ffffff;
+
+  --hero: #1858e4;
+  --hero-foreground: #ffffff;
+  --footer-bar: #0d2250;
 }
 
 @theme inline {
@@ -152,6 +161,9 @@
   --color-discount-foreground: var(--discount-foreground);
   --color-success: var(--success);
   --color-price: var(--price);
+  --color-hero: var(--hero);
+  --color-hero-foreground: var(--hero-foreground);
+  --color-footer-bar: var(--footer-bar);
 
   --color-border: var(--border);
   --color-input: var(--input);
@@ -177,7 +189,7 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
 
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-plus-jakarta);
 }
 
 /* Page width shared by every section: up to 1600px on big screens, side margin 16px on phones growing to 32px. */
