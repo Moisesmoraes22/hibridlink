@@ -66,13 +66,18 @@ export function ProductCard({
         href={`/produto/${product.id}`}
         className="flex flex-1 flex-col transition-transform duration-150 active:scale-[0.99]"
       >
-        <div className={cn("relative aspect-square w-full", compact ? "p-3" : "p-4")}>
+        <div className="relative aspect-square w-full">
           {discount && (
-            <span className="absolute left-3 top-1 z-10 rounded-md bg-discount px-1.5 py-0.5 text-[11px] font-bold text-discount-foreground">
+            <span className="absolute left-3 top-1.5 z-10 rounded-md bg-discount px-1.5 py-0.5 text-[11px] font-bold text-discount-foreground">
               -{discount}%
             </span>
           )}
-          <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-xl bg-white">
+          <div
+            className={cn(
+              "absolute flex items-center justify-center overflow-hidden rounded-xl bg-white",
+              compact ? "inset-3" : "inset-4",
+            )}
+          >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={cardImage(product.image)}
