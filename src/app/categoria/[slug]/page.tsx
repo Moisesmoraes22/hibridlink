@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { Suspense } from "react"
 
-import { SearchResults } from "@/components/search-results"
+import { SearchResults, SearchResultsStatic } from "@/components/search-results"
 import { SiteFooter } from "@/components/site-footer"
 import { CATEGORIES } from "@/lib/mock-data"
 import { categoryCounts } from "@/lib/deals"
@@ -43,15 +43,17 @@ export default async function CategoriaPage({
   if (!category) notFound()
   const { products } = await getCatalog()
 
+  const props = {
+    categories: categoryCounts(products),
+    products,
+    categorySlug: category.slug,
+    categoryName: category.name,
+  }
+
   return (
     <main id="conteudo" className="min-h-screen bg-background">
-      <Suspense fallback={null}>
-        <SearchResults
-          categories={categoryCounts(products)}
-          products={products}
-          categorySlug={category.slug}
-          categoryName={category.name}
-        />
+      <Suspense fallback={<SearchResultsStatic {...props} />}>
+        <SearchResults {...props} />
       </Suspense>
       <SiteFooter />
     </main>

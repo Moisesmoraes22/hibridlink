@@ -1,6 +1,6 @@
 import { Suspense } from "react"
 
-import { SearchResults } from "@/components/search-results"
+import { SearchResults, SearchResultsStatic } from "@/components/search-results"
 import { SiteFooter } from "@/components/site-footer"
 import { categoryCounts } from "@/lib/deals"
 import { getCatalog } from "@/lib/offers"
@@ -15,10 +15,11 @@ export const revalidate = 300
 
 export default async function BuscaPage() {
   const { products } = await getCatalog()
+  const props = { products, categories: categoryCounts(products) }
   return (
     <main id="conteudo" className="min-h-screen bg-background">
-      <Suspense fallback={null}>
-        <SearchResults products={products} categories={categoryCounts(products)} />
+      <Suspense fallback={<SearchResultsStatic {...props} />}>
+        <SearchResults {...props} />
       </Suspense>
       <SiteFooter />
     </main>

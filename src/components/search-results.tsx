@@ -67,8 +67,25 @@ export function SearchResults(props: SearchResultsProps) {
     <SearchResultsInner
       key={`${loja}|${preco}`}
       {...props}
+      searchParams={params}
       initialStores={initialStores}
       initialPriceRanges={initialPriceRanges}
+    />
+  )
+}
+
+/**
+ * The same list with no URL filters. It is the Suspense fallback of the pages, so the HTML a
+ * search engine (or a slow phone) receives already has the title and the first offers, instead
+ * of an empty shell that the browser fills in later.
+ */
+export function SearchResultsStatic(props: SearchResultsProps) {
+  return (
+    <SearchResultsInner
+      {...props}
+      searchParams={new URLSearchParams()}
+      initialStores={[]}
+      initialPriceRanges={[]}
     />
   )
 }
@@ -80,11 +97,12 @@ function SearchResultsInner({
   categoryName,
   initialStores,
   initialPriceRanges,
+  searchParams,
 }: SearchResultsProps & {
   initialStores: StoreSource[]
   initialPriceRanges: PriceRange[]
+  searchParams: Pick<URLSearchParams, "get">
 }) {
-  const searchParams = useSearchParams()
   const rawQuery = searchParams.get("q") ?? ""
 
   const [filters, setFilters] = useState<ProductFilters>({
