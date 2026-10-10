@@ -62,7 +62,7 @@ export function SearchResults(props: SearchResultsProps) {
   const initialStores = (Object.keys(STORES) as StoreSource[]).filter(
     (id) => id === loja && id !== "telegram",
   )
-  const initialPriceRanges = isPriceRange(preco) ? [preco] : []
+  const initialPriceRanges = preco.split(",").filter(isPriceRange)
   return (
     <SearchResultsInner
       key={`${loja}|${preco}`}
