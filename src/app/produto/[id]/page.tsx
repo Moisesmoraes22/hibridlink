@@ -1,15 +1,16 @@
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 
+import { ClosedOffer } from "@/components/closed-offer"
 import { DealsCarousel } from "@/components/deals-carousel"
 import { ProductComments } from "@/components/product-comments"
 import { ProductDetail } from "@/components/product-detail"
 import type { PriceSeries } from "@/components/price-history-chart"
 import { SiteFooter } from "@/components/site-footer"
-import { ALL_PRODUCTS, getProductOffers, STORES } from "@/lib/mock-data"
+import { ALL_PRODUCTS, CATEGORIES, getProductOffers, STORES } from "@/lib/mock-data"
 import type { Product } from "@/lib/types"
 import { formatCurrency } from "@/lib/utils"
-import { getOffer, getOfferImages, getPriceStats, getRelated, getSiblings, getTopDiscountIds } from "@/lib/offers"
+import { getClosedOffer, getOffer, getOfferImages, getPriceStats, getRelated, getSiblings, getTopDiscountIds } from "@/lib/offers"
 import { productJsonLd, serializeJsonLd } from "@/lib/structured-data"
 
 const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://e-zoom.vercel.app"
@@ -36,7 +37,13 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { id } = await params
   const product = (await getOffer(id)) ?? ALL_PRODUCTS.find((p) => p.id === id)
-  if (!product) return { title: "Oferta não encontrada" }
+  if (!product) {
+    // An ended offer keeps its page (it says so and offers alternatives) but stays out of the index.
+    const closed = await getClosedOffer(id)
+    return closed
+      ? { title: `Oferta encerrada: ${closed.title}`, robots: { index: false, follow: true } }
+      : { title: "Oferta não encontrada" }
+  }
   return {
     title: product.title,
     description: `${product.title} por ${formatCurrency(product.price)} em ${STORES[product.store].name}. Veja o histórico de preço e vá direto para a loja.`,
@@ -65,7 +72,17 @@ export default async function ProdutoPage({
   // still links to mock products, so keep those pages alive.
   const liveOffer = await getOffer(id)
   const product = liveOffer ?? ALL_PRODUCTS.find((p) => p.id === id)
-  if (!product) notFound()
+  if (!product) {
+    const closed = await getClosedOffer(id)
+    if (!closed) notFound()
+    const category = CATEGORIES.find((c) => c.slug === closed.category)
+    return (
+      <main id="conteudo" className="min-h-screen bg-background">
+        <ClosedOffer offer={closed} categoryName={category?.name} categorySlug={category?.slug} />
+        <SiteFooter />
+      </main>
+    )
+  }
 
   const isLive = liveOffer !== null
   const stats = isLive ? await getPriceStats(product.id) : null

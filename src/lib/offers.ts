@@ -277,6 +277,22 @@ export const getOffer = cache(async (id: string): Promise<Product | null> => {
   return withoutUndefined({ ...rowToProduct(row as unknown as OfferRow, prices), dropAt })
 })
 
+/**
+ * An offer that is no longer active (the public read policy hides it), through the narrow
+ * `closed_offer` function: only what was public while it was live, never its affiliate link.
+ * Used for the "oferta encerrada" page, so an expired link does not end in a bare 404.
+ */
+export const getClosedOffer = cache(
+  async (id: string): Promise<{ id: string; title: string; image: string; price: number; store: Product["store"]; category: string } | null> => {
+    const supabase = lightClient()
+    if (!supabase || !UUID.test(id)) return null
+    const { data } = await supabase.rpc("closed_offer", { offer_id: id })
+    const row = (data as { id: string; store_id: Product["store"]; title: string; image: string | null; category_slug: string | null; price: number }[] | null)?.[0]
+    if (!row) return null
+    return { id: row.id, title: row.title, image: row.image ?? "", price: Number(row.price), store: row.store_id, category: row.category_slug ?? "outros" }
+  },
+)
+
 /** Offers sharing the same catalogue product in OTHER stores (empty without a shared product id). */
 export const getSiblings = cache(async (productId: string, store: string): Promise<Product[]> => {
   const supabase = lightClient()
