@@ -34,7 +34,20 @@ const NOT_TOY = /cesto|organizador|caixa organizadora|armario|prateleira|nicho/
 const startsWithPhone = (title: string) => PHONE.test(plain(title).split(/\s+/).slice(0, 3).join(" "))
 /** Words of a real phone, and of everything that is only for a phone (cases, chargers, films...). */
 const PHONE = /smartphone|celular|iphone|galaxy|redmi|xiaomi|poco|moto g|moto e|motorola|edge|realme|pixel|tecno|oppo|infinix|honor|nokia|zte/
-const PHONE_ACCESSORY = /capa|case|capinha|pelicula|carregador|cabo|suporte|fone|fonte|adaptador|bateria|pulseira|protetor|lente|anel|cordao|tripe|gimbal|kit|fita|vidro|hidrogel|dock|hub|usb|otg|pop ?socket|tablet|smartwatch|relogio/
+const PHONE_ACCESSORY = /capa|case|capinha|pelicula|carregador|cabo|suporte|fone|fonte|adaptador|bateria|pulseira|protetor|lente|anel|cordao|tripe|gimbal|kit|fita|vidro|hidrogel|dock|hub|usb|otg|pop ?socket|tablet|tab|smartwatch|relogio|teleprompter|microfone|ring light|estabilizador|gatilho|cooler|controle|selfie|bastao/
+/** Brand of a phone title, for the mixed shelf (null when it is none of the brands we highlight). */
+const PHONE_BRANDS: [string, RegExp][] = [
+  ["samsung", /samsung|galaxy/],
+  ["iphone", /iphone|apple/],
+  ["redmi", /redmi|xiaomi|poco/],
+  ["motorola", /motorola|moto /],
+  ["realme", /realme/],
+  ["google", /pixel|google/],
+]
+const phoneBrand = (title: string) => {
+  const t = plain(title)
+  return PHONE_BRANDS.find(([, re]) => re.test(t))?.[0] ?? "outros"
+}
 const isKidsDay = (now: Date) => now.getMonth() === 9 && now.getDate() <= 13
 
 interface Shelf {
@@ -48,6 +61,8 @@ interface Shelf {
   not?: RegExp
   /** Only titles for which this is true are shown (a shelf of one kind of product inside a mixed category). */
   only?: (title: string) => boolean
+  /** Interleaves the shelf by this key (one of each in turn), so no single brand fills it. */
+  mixBy?: (title: string) => string
 }
 
 /**
@@ -146,6 +161,7 @@ const SHELVES: Shelf[] = [
     linkLabel: "Ver todos os celulares",
     // The category also holds cases, chargers and films: the shelf is for the phones themselves.
     only: startsWithPhone,
+    mixBy: phoneBrand,
     not: PHONE_ACCESSORY,
     chips: [
       { label: "Samsung", q: "samsung" },
@@ -225,8 +241,19 @@ function pickShelf(products: Product[], shelf: Shelf, skip: Set<string>): Produc
         (!shelf.only || shelf.only(p.title)),
     ),
   )
-  const { first } = shelf
+  const { first, mixBy } = shelf
   if (first) ranked.sort((a, b) => Number(first.test(plain(b.title))) - Number(first.test(plain(a.title))))
+  if (mixBy) {
+    // Round-robin over the brands, each brand's best first; brands appear in order of their best offer.
+    const groups = new Map<string, Product[]>()
+    for (const p of ranked) groups.set(mixBy(p.title), [...(groups.get(mixBy(p.title)) ?? []), p])
+    const lists = [...groups.values()]
+    const mixed: Product[] = []
+    for (let i = 0; mixed.length < ROW_SIZE && lists.some((l) => i < l.length); i++) {
+      for (const l of lists) if (i < l.length && mixed.length < ROW_SIZE) mixed.push(l[i])
+    }
+    return mixed
+  }
   return ranked.slice(0, ROW_SIZE)
 }
 
