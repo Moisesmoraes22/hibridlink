@@ -56,10 +56,10 @@
 
   /* Call to action ("Ver oferta") is the green button (white text).
      Discount badges are orange (white text). Both read the same on light and dark. */
-  --cta: #22a050;
-  --cta-hover: #1b8a42;
+  --cta: #15803d;
+  --cta-hover: #166534;
   --cta-foreground: #ffffff;
-  --discount: #f97316;
+  --discount: #c2410c;
   --discount-foreground: #ffffff;
   --success: #15803d;
   /* Prices: black on light, white on dark. */
@@ -113,10 +113,10 @@
   --destructive: #ef4444;
   --destructive-foreground: #eef3ff;
 
-  --cta: #22a050;
-  --cta-hover: #1b8a42;
+  --cta: #15803d;
+  --cta-hover: #166534;
   --cta-foreground: #ffffff;
-  --discount: #f97316;
+  --discount: #c2410c;
   --discount-foreground: #ffffff;
   --success: #4ade80;
   --price: #ffffff;
