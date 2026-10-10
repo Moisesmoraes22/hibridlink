@@ -1,13 +1,18 @@
 import type { Metadata } from "next"
 
-import { CategoryTiles, type Tile } from "@/components/category-tiles"
+import { CategoryGrid } from "@/components/category-grid"
+import { CouponsSection } from "@/components/coupons-section"
+import { InterestsSection } from "@/components/interests-section"
+import { ProductRow } from "@/components/product-row"
+import { StoresSection } from "@/components/stores-section"
 import { FeaturedOffers } from "@/components/featured-offers"
 import { HomeHero } from "@/components/home-hero"
 import { HowToBuy } from "@/components/how-to-buy"
 import { PriceChips } from "@/components/price-chips"
 import { SiteFooter } from "@/components/site-footer"
 import { StoreStrip } from "@/components/store-strip"
-import { byClicks, byFeatured, byRelevance, countByStoreId } from "@/lib/deals"
+import { byClicks, byFeatured, byRelevance, categoryCounts, countByStoreId } from "@/lib/deals"
+import { getCoupons } from "@/lib/coupons"
 import { getCatalog } from "@/lib/offers"
 import type { Product } from "@/lib/types"
 
@@ -16,13 +21,6 @@ export const revalidate = 300
 export const metadata: Metadata = { alternates: { canonical: "/" } }
 
 const FEATURED = 4
-
-/** One door per line of the home's "Encontre o que combina com você". */
-const DOORS = [
-  { label: "Casa e cozinha", slug: "casa" },
-  { label: "Tecnologia", slug: "eletronicos" },
-  { label: "Ferramentas", slug: "ferramentas" },
-]
 
 /**
  * Four offers for the main shelf: the best-ranked among those with a recorded discount or a price
@@ -46,6 +44,14 @@ function pickFeatured(products: Product[]): Product[] {
 }
 
 const SHELF = 4
+const KIDS_SIZE = 12
+const NOT_TOY = /cesto|organizador|caixa organizadora|armario|prateleira|nicho/
+const plain = (text: string) => text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase()
+const isKidsDay = (now: Date) => now.getMonth() === 9 && now.getDate() <= 13
+
+/** The best toys (storage furniture is not a toy), stores mixed, never repeating what is already on a shelf. */
+const pickKids = (products: Product[], skip: Set<string>) =>
+  byRelevance(products.filter((p) => p.category === "brinquedos" && !skip.has(p.id) && !NOT_TOY.test(plain(p.title)))).slice(0, KIDS_SIZE)
 /** A shelf this short looks abandoned: it shows from this many offers on, else not at all. */
 const SHELF_MIN = 3
 const DROP_WINDOW_H = 48
@@ -68,19 +74,32 @@ export default async function Home() {
   // Only what visitors really opened (3+ clicks); with little traffic the shelf simply does not appear.
   const popular = live ? byClicks(products.filter((p) => !shown.has(p.id))).slice(0, SHELF) : []
 
-  // The best-ranked offer of a category lends its photo to the tile (a real product, never stock art).
-  const imageOf = (slug: string) =>
-    byRelevance(products.filter((p) => p.category === slug)).find((p) => p.image)?.image
-  const tiles: Tile[] = [
-    ...DOORS.map(({ label, slug }) => ({ label, href: `/categoria/${slug}`, image: imageOf(slug) })),
-    { label: "Até R$ 100", href: "/busca?preco=0-50,50-100" },
-  ]
+  // Children's Day (12 Oct): shown from 1 to 13 October, then it disappears by itself.
+  const kids = isKidsDay(new Date()) ? pickKids(products, shown) : []
+  kids.forEach((p) => shown.add(p.id))
+  const coupons = await getCoupons(3)
+  const storeCounts = countByStoreId(products)
 
   return (
     <main id="conteudo" className="bg-background">
       <HomeHero />
       <StoreStrip counts={countByStoreId(products)} />
       <FeaturedOffers offers={featured} />
+      {kids.length >= SHELF_MIN && (
+        <ProductRow
+          title="Dia das Crianças"
+          products={kids}
+          href="/categoria/brinquedos"
+          linkLabel="Ver todos os brinquedos"
+          chips={[
+            { label: "Bonecas", href: "/busca?q=boneca" },
+            { label: "Lego", href: "/busca?q=lego" },
+            { label: "Hot Wheels", href: "/busca?q=hot%20wheels" },
+            { label: "Quebra-cabeça", href: "/busca?q=quebra-cabeca" },
+            { label: "Pelúcias", href: "/busca?q=pelucia" },
+          ]}
+        />
+      )}
       {drops.length >= SHELF_MIN && (
         <FeaturedOffers
           offers={drops}
@@ -101,8 +120,11 @@ export default async function Home() {
           linkLabel="Ver todas as ofertas"
         />
       )}
-      <CategoryTiles tiles={tiles} />
+      <CategoryGrid categories={categoryCounts(products, true).slice(0, 8)} showCounts={live} />
+      <InterestsSection products={products} />
+      <CouponsSection coupons={coupons} />
       <PriceChips />
+      <StoresSection counts={storeCounts} />
       <HowToBuy />
       <SiteFooter />
     </main>
