@@ -5,11 +5,10 @@ import { DealsCarousel } from "@/components/deals-carousel"
 import { ProductComments } from "@/components/product-comments"
 import { ProductDetail } from "@/components/product-detail"
 import { SiteFooter } from "@/components/site-footer"
-import { byDiscount, sameCategory } from "@/lib/deals"
 import { ALL_PRODUCTS, getProductOffers, STORES } from "@/lib/mock-data"
 import type { Product } from "@/lib/types"
 import { formatCurrency } from "@/lib/utils"
-import { getCatalog, getOfferImages, getPriceStats } from "@/lib/offers"
+import { getOffer, getOfferImages, getPriceStats, getRelated, getSiblings, getTopDiscountIds } from "@/lib/offers"
 import { productJsonLd, serializeJsonLd } from "@/lib/structured-data"
 
 const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://e-zoom.vercel.app"
@@ -25,10 +24,8 @@ export const revalidate = 300
 const PREBUILT_PAGES = 60
 
 export async function generateStaticParams() {
-  const { products } = await getCatalog()
-  return byDiscount(products)
-    .slice(0, PREBUILT_PAGES)
-    .map((product) => ({ id: product.id }))
+  const ids = await getTopDiscountIds(PREBUILT_PAGES)
+  return ids.map((id) => ({ id }))
 }
 
 export async function generateMetadata({
@@ -37,8 +34,7 @@ export async function generateMetadata({
   params: Promise<{ id: string }>
 }): Promise<Metadata> {
   const { id } = await params
-  const { products } = await getCatalog()
-  const product = products.find((p) => p.id === id) ?? ALL_PRODUCTS.find((p) => p.id === id)
+  const product = (await getOffer(id)) ?? ALL_PRODUCTS.find((p) => p.id === id)
   if (!product) return { title: "Oferta não encontrada" }
   return {
     title: product.title,
@@ -64,13 +60,13 @@ export default async function ProdutoPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const { products, live } = await getCatalog()
-  // The header's mega menu still links to mock products, so keep those pages alive.
-  const product =
-    products.find((p) => p.id === id) ?? ALL_PRODUCTS.find((p) => p.id === id)
+  // One row, not the whole catalogue (a cold page used to take 14 s). The header's mega menu
+  // still links to mock products, so keep those pages alive.
+  const liveOffer = await getOffer(id)
+  const product = liveOffer ?? ALL_PRODUCTS.find((p) => p.id === id)
   if (!product) notFound()
 
-  const isLive = live && products.includes(product)
+  const isLive = liveOffer !== null
   const stats = isLive ? await getPriceStats(product.id) : null
   const images = isLive ? await getOfferImages(product.id, product.image) : [product.image]
   const toOffer = (p: Product) => ({
@@ -86,16 +82,12 @@ export default async function ProdutoPage({
   // once the collectors fill product_id.
   const siblings =
     isLive && product.productId
-      ? products
-          .filter((p) => p.productId === product.productId && p.store !== product.store)
-          .sort((a, b) => a.price - b.price)
+      ? (await getSiblings(product.productId, product.store)).sort((a, b) => a.price - b.price)
       : []
   const offers = isLive ? [product, ...siblings].map(toOffer) : getProductOffers(product)
 
   // Suggestions use real offers only (never the sample data) and hide below 3 cards.
-  const similar = isLive ? sameCategory(product, products) : []
-  const shown = new Set([product.id, ...similar.map((p) => p.id)])
-  const more = isLive ? byDiscount(products.filter((p) => !shown.has(p.id))).slice(0, 8) : []
+  const { similar, more } = isLive ? await getRelated(product) : { similar: [], more: [] }
 
   return (
     <main id="conteudo" className="min-h-screen bg-background">

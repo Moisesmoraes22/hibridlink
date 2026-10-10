@@ -3,15 +3,14 @@ import Link from "next/link"
 import { BrandMark } from "@/components/brand-mark"
 import { CookiePreferencesButton } from "@/components/cookie-consent"
 
-import { categoryCounts, countByStoreId } from "@/lib/deals"
 import { STORES } from "@/lib/mock-data"
-import { getCatalog } from "@/lib/offers"
+import { getSiteSummary } from "@/lib/offers"
 
 export async function SiteFooter() {
   // Same real data as the menus: categories with offers, stores with offers.
-  const { products } = await getCatalog()
-  const categories = categoryCounts(products).slice(0, 5)
-  const storeCounts = countByStoreId(products)
+  const summary = await getSiteSummary()
+  const categories = summary.categories.slice(0, 5)
+  const storeCounts = summary.stores
   const stores = Object.values(STORES).filter(
     (store) => store.id !== "telegram" && storeCounts[store.id] > 0,
   )

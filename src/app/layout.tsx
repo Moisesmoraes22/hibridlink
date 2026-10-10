@@ -11,9 +11,8 @@ import { FavoritesFlightLayer } from "@/components/favorites-flight-layer";
 import { FavoritesSheet } from "@/components/favorites-sheet";
 import { SiteHeader } from "@/components/site-header";
 import { THEME_INIT_SCRIPT, ThemeProvider } from "@/components/theme-provider";
-import { categoryCounts } from "@/lib/deals";
 import { FavoritesProvider } from "@/lib/favorites-context";
-import { getCatalog } from "@/lib/offers";
+import { getSiteSummary } from "@/lib/offers";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -38,7 +37,7 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  const { products, live } = await getCatalog();
+  const { categories, live } = await getSiteSummary();
   return (
     <html
       lang="pt-BR"
@@ -60,7 +59,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           <AuthProvider>
             <MotionConfig reducedMotion="user">
               <FavoritesProvider>
-                <SiteHeader categories={categoryCounts(products)} showCounts={live} />
+                <SiteHeader categories={categories} showCounts={live} />
                 {children}
                 <FavoritesSheet />
                 <FavoritesFlightLayer />

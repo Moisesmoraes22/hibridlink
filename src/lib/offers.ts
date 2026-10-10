@@ -1,8 +1,8 @@
 import { createClient } from "@supabase/supabase-js"
 import { cache } from "react"
 
-import { withVariants } from "@/lib/deals"
-import { ALL_PRODUCTS } from "@/lib/mock-data"
+import { byDiscount, categoryCounts, countByStoreId, sameCategory, withVariants, type CategoryCount } from "@/lib/deals"
+import { ALL_PRODUCTS, CATEGORIES } from "@/lib/mock-data"
 import { isCredibleDrop, OFFER_COLUMNS, rowToProduct, type OfferRow } from "@/lib/offer-row"
 import type { PriceStats, Product } from "@/lib/types"
 
@@ -147,3 +147,127 @@ export const getOfferImages = cache(async (offerId: string, cover: string): Prom
   const extra = Array.isArray(data?.images) ? (data.images as unknown[]).filter((u): u is string => typeof u === "string" && /^https:\/\//.test(u)) : []
   return [...new Set([cover, ...extra])].slice(0, 8)
 })
+
+// ---------------------------------------------------------------------------
+// Light queries: pages that need one offer (or only counts) must not read the whole catalogue.
+// ---------------------------------------------------------------------------
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const STORE_IDS = ["mercado_livre", "shopee", "amazon"] as const
+/** A category with fewer offers than this is hidden (same rule as `categoryCounts`). */
+const MIN_CATEGORY_OFFERS = 8
+
+function lightClient() {
+  const { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } = process.env
+  if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) return null
+  return createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, { auth: { persistSession: false } })
+}
+
+/** The same visibility rule as the catalogue: active, with OUR affiliate link and an image. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const visible = <T extends { eq: any; not: any }>(q: T): T =>
+  q.eq("is_active", true).not("affiliate_url", "is", null).not("image", "is", null)
+
+/**
+ * Categories (with enough offers) and store totals for the header and footer, from ~30 count
+ * queries run in parallel instead of the whole catalogue. Falls back to the catalogue only
+ * when the database is not configured (sample data).
+ */
+export const getSiteSummary = cache(
+  async (): Promise<{ categories: CategoryCount[]; stores: Record<string, number>; live: boolean }> => {
+    const supabase = lightClient()
+    if (supabase) {
+      const count = (column: string, value: string) =>
+        visible(supabase.from("offers").select("id", { count: "exact", head: true })).eq(column, value)
+      const slugs = CATEGORIES.map((c) => c.slug)
+      const results = await Promise.all([
+        ...slugs.map((slug) => count("category_slug", slug)),
+        ...STORE_IDS.map((id) => count("store_id", id)),
+      ])
+      if (results.every((r) => !r.error)) {
+        const total = (i: number) => results[i].count ?? 0
+        const categories = CATEGORIES.map((c, i) => ({ slug: c.slug, name: c.name, count: total(i) }))
+          .filter((c) => c.count >= MIN_CATEGORY_OFFERS)
+          .sort((a, b) => b.count - a.count)
+        const stores = Object.fromEntries(STORE_IDS.map((id, i) => [id, total(slugs.length + i)]))
+        if (Object.values(stores).some((n) => n > 0)) return { categories, stores, live: true }
+      }
+    }
+    const { products, live } = await getCatalog()
+    return { categories: categoryCounts(products), stores: countByStoreId(products), live }
+  },
+)
+
+/**
+ * One offer by id, with its recent prices (for the "price dropped" marker). Null when it does
+ * not exist, is inactive, or the database is not configured (the page then tries the samples).
+ */
+export const getOffer = cache(async (id: string): Promise<Product | null> => {
+  const supabase = lightClient()
+  if (!supabase || !UUID.test(id)) return null
+  const { data: row } = await visible(supabase.from("offers").select(OFFER_COLUMNS)).eq("id", id).maybeSingle()
+  if (!row) return null
+  const { data: history } = await supabase
+    .from("price_history")
+    .select("price, recorded_at")
+    .eq("offer_id", id)
+    .order("recorded_at", { ascending: true })
+    .limit(60)
+  const prices = (history ?? []).map((h) => Number(h.price))
+  let dropAt: string | undefined
+  ;(history ?? []).forEach((h, i) => {
+    if (i === 0) return
+    if (isCredibleDrop(prices[i - 1], prices[i])) dropAt = h.recorded_at as string
+    else dropAt = undefined
+  })
+  return withoutUndefined({ ...rowToProduct(row as unknown as OfferRow, prices), dropAt })
+})
+
+/** Offers sharing the same catalogue product in OTHER stores (empty without a shared product id). */
+export const getSiblings = cache(async (productId: string, store: string): Promise<Product[]> => {
+  const supabase = lightClient()
+  if (!supabase) return []
+  const { data } = await visible(supabase.from("offers").select(OFFER_COLUMNS))
+    .eq("product_id", productId)
+    .neq("store_id", store)
+    .limit(10)
+  return ((data ?? []) as unknown as OfferRow[]).map((r) => withoutUndefined(rowToProduct(r)))
+})
+
+/** "Similar offers" (same category, closest price) and "more discounted offers", from two small queries. */
+export const getRelated = cache(
+  async (product: Product): Promise<{ similar: Product[]; more: Product[] }> => {
+    const supabase = lightClient()
+    if (!supabase) return { similar: [], more: [] }
+    const [sameRows, discountRows] = await Promise.all([
+      visible(supabase.from("offers").select(OFFER_COLUMNS))
+        .eq("category_slug", product.category)
+        .neq("id", product.id)
+        .order("last_seen_at", { ascending: false })
+        .limit(80),
+      visible(supabase.from("offers").select(OFFER_COLUMNS))
+        .not("original_price", "is", null)
+        .neq("id", product.id)
+        .order("last_seen_at", { ascending: false })
+        .limit(400),
+    ])
+    const toProducts = (rows: unknown) =>
+      ((rows ?? []) as OfferRow[]).map((r) => withoutUndefined(rowToProduct(r)))
+    const similar = sameCategory(product, toProducts(sameRows.data))
+    const shown = new Set(similar.map((p) => p.id))
+    const more = byDiscount(toProducts(discountRows.data).filter((p) => !shown.has(p.id))).slice(0, 8)
+    return { similar, more }
+  },
+)
+
+/** Ids of the best-discounted offers, to pre-build their pages (a small query, not the catalogue). */
+export async function getTopDiscountIds(limit: number): Promise<string[]> {
+  const supabase = lightClient()
+  if (!supabase) return []
+  const { data } = await visible(supabase.from("offers").select(OFFER_COLUMNS))
+    .not("original_price", "is", null)
+    .order("last_seen_at", { ascending: false })
+    .limit(600)
+  const rows = ((data ?? []) as unknown as OfferRow[]).map((r) => rowToProduct(r))
+  return byDiscount(rows).slice(0, limit).map((p) => p.id)
+}
