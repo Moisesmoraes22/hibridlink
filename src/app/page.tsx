@@ -1,3 +1,5 @@
+import type { Metadata } from "next"
+
 import { CategoryGrid } from "@/components/category-grid"
 import { DealsCarousel } from "@/components/deals-carousel"
 import { ProductRow } from "@/components/product-row"
@@ -16,6 +18,8 @@ import { getCatalog, getPriceStats } from "@/lib/offers"
 import type { Product } from "@/lib/types"
 
 export const revalidate = 300
+
+export const metadata: Metadata = { alternates: { canonical: "/" } }
 
 const SECTION_SIZE = 9
 const SHELVES = 2
