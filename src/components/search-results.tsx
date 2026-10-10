@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { AppliedFilterChips } from "@/components/applied-filter-chips"
 import { FilterPanel } from "@/components/filter-panel"
 import { Pagination } from "@/components/pagination"
+import { RequestProduct } from "@/components/request-product"
 import { ProductCard } from "@/components/product-card"
 import { SearchBar } from "@/components/search-bar"
 import { SortSelect } from "@/components/sort-select"
@@ -330,6 +331,7 @@ function SearchResultsInner({
                   Limpar filtros
                 </Button>
               )}
+              {rawQuery && !hasFilters && <RequestProduct query={rawQuery} />}
             </div>
           ) : (
             <>

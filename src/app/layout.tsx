@@ -9,6 +9,7 @@ import { AuthProvider } from "@/components/auth-provider";
 import { ClarityLoader, CookieBanner } from "@/components/cookie-consent";
 import { FavoritesFlightLayer } from "@/components/favorites-flight-layer";
 import { FavoritesSheet } from "@/components/favorites-sheet";
+import { RequestNotice } from "@/components/request-notice";
 import { SiteHeader } from "@/components/site-header";
 import { THEME_INIT_SCRIPT, ThemeProvider } from "@/components/theme-provider";
 import { FavoritesProvider } from "@/lib/favorites-context";
@@ -62,6 +63,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
             <MotionConfig reducedMotion="user">
               <FavoritesProvider>
                 <SiteHeader categories={categories} showCounts={live} />
+                <RequestNotice />
                 {children}
                 <FavoritesSheet />
                 <FavoritesFlightLayer />
