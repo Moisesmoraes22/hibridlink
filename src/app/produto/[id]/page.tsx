@@ -4,6 +4,7 @@ import { notFound } from "next/navigation"
 import { DealsCarousel } from "@/components/deals-carousel"
 import { ProductComments } from "@/components/product-comments"
 import { ProductDetail } from "@/components/product-detail"
+import type { PriceSeries } from "@/components/price-history-chart"
 import { SiteFooter } from "@/components/site-footer"
 import { ALL_PRODUCTS, getProductOffers, STORES } from "@/lib/mock-data"
 import type { Product } from "@/lib/types"
@@ -86,6 +87,15 @@ export default async function ProdutoPage({
       : []
   const offers = isLive ? [product, ...siblings].map(toOffer) : getProductOffers(product)
 
+  // One line per store when the same product has recorded history in more than one store.
+  const COLORS: Record<string, string> = { mercado_livre: "#2d3277", shopee: "#ee4d2d", amazon: "#ff9900" }
+  const history: PriceSeries[] = []
+  if (stats) history.push({ id: product.id, label: STORES[product.store].name, color: COLORS[product.store] ?? "#2563eb", points: stats.points })
+  for (const o of siblings) {
+    const st = await getPriceStats(o.id)
+    if (st) history.push({ id: o.id, label: STORES[o.store].name, color: COLORS[o.store] ?? "#2563eb", points: st.points })
+  }
+
   // Suggestions use real offers only (never the sample data) and hide below 3 cards.
   const { similar, more } = isLive ? await getRelated(product) : { similar: [], more: [] }
 
@@ -98,7 +108,7 @@ export default async function ProdutoPage({
           dangerouslySetInnerHTML={{ __html: serializeJsonLd(productJsonLd(product, SITE)) }}
         />
       )}
-      <ProductDetail product={product} offers={offers} stats={stats} images={images} />
+      <ProductDetail product={product} offers={offers} stats={stats} history={history} images={images} />
       {/* Comments need a real offer row (a uuid in the database); the sample catalogue has none. */}
       {isLive && (
         <section className="page-container pb-8">

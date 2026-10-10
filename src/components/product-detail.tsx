@@ -21,7 +21,7 @@ import Link from "next/link"
 import { useEffect, useRef } from "react"
 
 import { OfferLink } from "@/components/offer-link"
-import { PriceHistoryChart } from "@/components/price-history-chart"
+import { PriceHistoryChart, type PriceSeries } from "@/components/price-history-chart"
 import { ProductGallery } from "@/components/product-gallery"
 import { ShareButton } from "@/components/share-button"
 import { StoreBadge } from "@/components/store-badge"
@@ -54,12 +54,15 @@ export function ProductDetail({
   product,
   offers,
   stats,
+  history,
   images,
 }: {
   product: Product
   offers: ProductOffer[]
   /** Full recorded price history (live products only). */
   stats: PriceStats | null
+  /** One series per store with recorded history (the chart draws one line each). */
+  history: PriceSeries[]
   /** All photos of the product, cover first. */
   images: string[]
 }) {
@@ -338,10 +341,10 @@ export function ProductDetail({
           {tracked ? (
             <>
               <PriceHistoryChart
-                stats={tracked}
+                series={history}
                 now={Math.max(
                   new Date(product.seenAt ?? 0).getTime(),
-                  new Date(tracked.points[tracked.points.length - 1].at).getTime(),
+                  ...history.map((h) => new Date(h.points[h.points.length - 1].at).getTime()),
                 )}
               />
               <dl className="mt-3 grid grid-cols-3 gap-3 text-sm">

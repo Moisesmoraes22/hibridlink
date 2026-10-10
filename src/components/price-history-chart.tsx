@@ -1,110 +1,235 @@
-import type { PriceStats } from "@/lib/types"
-import { formatCurrency } from "@/lib/utils"
+"use client"
 
-const day = (iso: string) => new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })
+import { useMemo, useState } from "react"
+
+import { cn, formatCurrency } from "@/lib/utils"
+
+export interface PriceSeries {
+  id: string
+  label: string
+  color: string
+  /** Every recorded change, oldest first (the DB records a price only when it changes). */
+  points: { price: number; at: string }[]
+}
+
+const DAY = 86_400_000
+const PERIODS = [
+  { id: "7", label: "7 D", days: 7 },
+  { id: "30", label: "30 D", days: 30 },
+  { id: "90", label: "3 M", days: 90 },
+  { id: "max", label: "Máx", days: Infinity },
+] as const
+
+const dayStart = (t: number) => {
+  const d = new Date(t)
+  d.setHours(0, 0, 0, 0)
+  return d.getTime()
+}
+const fmtDay = (t: number) => new Date(t).toLocaleDateString("pt-BR", { day: "numeric", month: "short" })
 
 /**
- * Price history: the price line (a step line, since a price holds until it changes) with dots at
- * each recorded change, plus dashed lines for the lowest, average and highest recorded price.
- * Lines are SVG stretched to the box; dots and labels are HTML so they never get distorted.
+ * Price history as a daily line chart (like a stock chart): a price holds until it changes, so
+ * each day carries the last recorded price. One line per store when there is history for more
+ * than one; period chips; hover shows the day and every price. Only recorded prices are drawn.
  */
-export function PriceHistoryChart({ stats, now }: { stats: PriceStats; now: number }) {
-  const points = stats.points.slice(-60)
-  const t0 = new Date(points[0].at).getTime()
-  const span = Math.max(now - t0, 1)
-  const pad = (stats.max - stats.min) * 0.12
-  const lo = stats.min - pad
-  const hi = stats.max + pad
-  const X = (t: number) => Math.min(Math.max(((t - t0) / span) * 100, 0), 100)
+export function PriceHistoryChart({ series, now }: { series: PriceSeries[]; now: number }) {
+  const [period, setPeriod] = useState<(typeof PERIODS)[number]["id"]>("max")
+  const [hover, setHover] = useState<number | null>(null)
+
+  const model = useMemo(() => {
+    const today = dayStart(now)
+    const first = Math.min(...series.map((s) => dayStart(new Date(s.points[0].at).getTime())))
+    const totalDays = Math.round((today - first) / DAY)
+    const days = PERIODS.find((p) => p.id === period)!.days
+    const from = Number.isFinite(days) ? Math.max(first, today - days * DAY) : first
+    const n = Math.round((today - from) / DAY) + 1
+    const times = Array.from({ length: n }, (_, i) => from + i * DAY)
+    const lines = series.map((s) => {
+      const pts = s.points.map((p) => ({ price: p.price, t: new Date(p.at).getTime() }))
+      const values = times.map((t) => {
+        let v: number | null = null
+        for (const p of pts) if (p.t < t + DAY) v = p.price
+        return v
+      })
+      return { ...s, values }
+    })
+    const all = lines.flatMap((l) => l.values).filter((v): v is number => v !== null)
+    const min = Math.min(...all)
+    const max = Math.max(...all)
+    const pad = (max - min || max * 0.05) * 0.15
+    return { times, lines, totalDays, lo: min - pad, hi: max + pad, n }
+  }, [series, now, period])
+
+  const { times, lines, lo, hi, n } = model
+  const X = (i: number) => (n === 1 ? 50 : (i / (n - 1)) * 100)
   const Y = (v: number) => (1 - (v - lo) / (hi - lo)) * 100
+  const single = lines.length === 1
+  const ticks = [0, 1, 2, 3].map((k) => hi - ((hi - lo) * k) / 3)
+  const xLabels = [...new Set(n < 2 ? [0] : [0, Math.round((n - 1) / 3), Math.round(((n - 1) * 2) / 3), n - 1])]
 
-  let d = `M${X(t0)},${Y(points[0].price)}`
-  for (let i = 1; i < points.length; i++) {
-    const x = X(new Date(points[i].at).getTime())
-    d += ` H${x} V${Y(points[i].price)}`
-  }
-  d += ` H100`
+  const first = single ? lines[0].values.find((v) => v !== null) : null
+  const last = single ? lines[0].values[n - 1] : null
+  const singleColor = first != null && last != null && last > first ? "var(--discount)" : "var(--cta)"
 
-  const showAverage = points.length >= 3
-  // Newest change first: what actually moved the price, with the day it was seen.
-  const changes = points
-    .slice(1)
-    .map((p, i) => ({ at: p.at, from: points[i].price, to: p.price }))
-    .reverse()
-    .slice(0, 4)
+  const visiblePeriods = PERIODS.filter((p) => p.id === "max" || model.totalDays > p.days)
 
   return (
     <figure aria-label="Gráfico do histórico de preço">
-      <div className="relative mt-4 h-44 pl-16">
-        <span className="absolute left-0 top-0 text-[11px] tabular-nums text-muted-foreground">
-          {formatCurrency(stats.max)}
-        </span>
-        <span className="absolute bottom-0 left-0 text-[11px] tabular-nums text-muted-foreground">
-          {formatCurrency(stats.min)}
-        </span>
-        <div className="relative h-full border-b border-l border-border">
+      {visiblePeriods.length > 1 && (
+        <div role="group" aria-label="Período" className="mt-3 flex flex-wrap gap-1.5">
+          {visiblePeriods.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              aria-pressed={period === p.id}
+              onClick={() => setPeriod(p.id)}
+              className={cn(
+                "h-8 rounded-full px-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                period === p.id ? "bg-accent text-brand" : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className="relative mt-4 h-48 pl-16">
+        {ticks.map((v, k) => (
+          <span
+            key={k}
+            className="absolute left-0 -translate-y-1/2 text-[11px] tabular-nums text-muted-foreground"
+            style={{ top: `${(k / 3) * 100}%` }}
+          >
+            {formatCurrency(v)}
+          </span>
+        ))}
+
+        <div
+          className="relative h-full touch-pan-y"
+          onPointerMove={(e) => {
+            const r = e.currentTarget.getBoundingClientRect()
+            const ratio = Math.min(Math.max((e.clientX - r.left) / r.width, 0), 1)
+            setHover(n === 1 ? 0 : Math.round(ratio * (n - 1)))
+          }}
+          onPointerLeave={() => setHover(null)}
+        >
           <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden className="h-full w-full overflow-visible">
-            <path d={`${d} V100 H0 Z`} className="fill-brand/10" />
-            {showAverage && (
+            {ticks.map((v, k) => (
               <line
+                key={k}
                 x1="0"
                 x2="100"
-                y1={Y(stats.average)}
-                y2={Y(stats.average)}
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeDasharray="4 4"
+                y1={(k / 3) * 100}
+                y2={(k / 3) * 100}
+                stroke="var(--border)"
+                strokeWidth="1"
                 vectorEffect="non-scaling-stroke"
-                className="text-muted-foreground"
+              />
+            ))}
+            {lines.map((l) => {
+              const color = single ? singleColor : l.color
+              const idx = l.values.map((v, i) => (v === null ? -1 : i)).filter((i) => i >= 0)
+              if (!idx.length) return null
+              const path = idx.map((i, k) => `${k ? "L" : "M"}${X(i)},${Y(l.values[i]!)}`).join(" ")
+              return (
+                <g key={l.id}>
+                  {single && (
+                    <path
+                      d={`${path} L${X(idx[idx.length - 1])},100 L${X(idx[0])},100 Z`}
+                      fill={color}
+                      opacity="0.12"
+                    />
+                  )}
+                  <path
+                    d={path}
+                    fill="none"
+                    stroke={color}
+                    strokeWidth="2.5"
+                    strokeLinejoin="round"
+                    strokeLinecap="round"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                </g>
+              )
+            })}
+            {hover !== null && (
+              <line
+                x1={X(hover)}
+                x2={X(hover)}
+                y1="0"
+                y2="100"
+                stroke="var(--muted-foreground)"
+                strokeWidth="1"
+                strokeDasharray="3 3"
+                vectorEffect="non-scaling-stroke"
               />
             )}
-            <path
-              d={d}
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinejoin="round"
-              vectorEffect="non-scaling-stroke"
-              className="text-brand"
-            />
           </svg>
-          {points.map((p) => (
+
+          {lines.map((l) => {
+            const i = hover ?? n - 1
+            const v = l.values[i]
+            if (v === null || v === undefined) return null
+            return (
+              <span
+                key={l.id}
+                aria-hidden
+                className="absolute h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-card"
+                style={{ left: `${X(i)}%`, top: `${Y(v)}%`, background: single ? singleColor : l.color }}
+              />
+            )
+          })}
+
+          {hover !== null && (
+            <div
+              className="pointer-events-none absolute top-0 z-10 w-max -translate-x-1/2 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs shadow-md"
+              style={{ left: `${Math.min(Math.max(X(hover), 14), 86)}%` }}
+            >
+              <p className="font-semibold text-foreground">{fmtDay(times[hover])}</p>
+              {lines.map((l) => {
+                const v = l.values[hover]
+                if (v === null) return null
+                return (
+                  <p key={l.id} className="flex items-center gap-1.5 tabular-nums text-muted-foreground">
+                    {!single && <span aria-hidden className="h-2 w-2 rounded-full" style={{ background: l.color }} />}
+                    {!single && `${l.label}: `}
+                    <span className="font-semibold text-foreground">{formatCurrency(v)}</span>
+                  </p>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="relative mt-2 h-4 pl-16 text-[11px] text-muted-foreground">
+        <div className="relative h-full">
+          {xLabels.map((i, k) => (
             <span
-              key={p.at}
-              aria-hidden
-              className="absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-card bg-brand"
-              style={{ left: `${X(new Date(p.at).getTime())}%`, top: `${Y(p.price)}%` }}
-            />
+              key={i}
+              className={cn(
+                "absolute whitespace-nowrap",
+                k === 0 ? "" : k === xLabels.length - 1 ? "-translate-x-full" : "-translate-x-1/2",
+              )}
+              style={{ left: `${X(i)}%` }}
+            >
+              {fmtDay(times[i])}
+            </span>
           ))}
         </div>
       </div>
-      <div className="mt-1 flex justify-between pl-16 text-[11px] text-muted-foreground">
-        <span>{day(points[0].at)}</span>
-        <span>hoje</span>
-      </div>
-      {showAverage && (
-        <figcaption className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
-          <span aria-hidden className="h-0 w-4 border-t-2 border-dashed border-current" />
-          Média do período: <span className="tabular-nums text-foreground">{formatCurrency(stats.average)}</span>
+
+      {!single && (
+        <figcaption className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-foreground">
+          {lines.map((l) => (
+            <span key={l.id} className="flex items-center gap-1.5">
+              <span aria-hidden className="h-0.5 w-4 rounded" style={{ background: l.color }} />
+              {l.label}
+            </span>
+          ))}
         </figcaption>
       )}
-      <ul className="mt-4 flex flex-col gap-1.5 border-t border-border pt-3 text-sm">
-        {changes.map((c) => {
-          const pct = Math.round(((c.to - c.from) / c.from) * 100)
-          return (
-            <li key={c.at} className="flex flex-wrap items-center justify-between gap-x-3">
-              <span className="text-muted-foreground">{day(c.at)}</span>
-              <span className="tabular-nums text-foreground">
-                {formatCurrency(c.from)} → <strong>{formatCurrency(c.to)}</strong>
-              </span>
-              <span className={`w-14 text-right font-semibold tabular-nums ${pct < 0 ? "text-success" : "text-discount"}`}>
-                {pct > 0 ? "+" : ""}
-                {pct}%
-              </span>
-            </li>
-          )
-        })}
-      </ul>
     </figure>
   )
 }
