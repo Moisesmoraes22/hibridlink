@@ -45,8 +45,9 @@ A amostra de cliques é pequena e inclui testes nossos. Serve de indício, não 
   páginas fica cada vez mais lenta.
 - **Correção:** uma função no banco (`offer_recent_prices`) devolve, numa requisição, só os últimos 8
   preços das ofertas que têm 2 ou mais. O site usa a função e cai na leitura antiga se ela não existir.
-- **Estado:** código feito; a função precisa ser criada no banco (**depende de você**: autorizar a
-  migração `20261010000000_offer_recent_prices.sql`).
+- **Estado:** feito. Função criada no banco em 10/10 (devolve as 2.054 ofertas com histórico numa
+  requisição). Além disso o catálogo ficou em memória por 5 minutos por processo, com uma leitura
+  compartilhada: o build caiu de 68 s (com falhas e novas tentativas) para 18 s, sem falhas.
 
 ### A3. Falha do banco mostra o catálogo de exemplo
 - **Medido:** `getCatalog` devolve os produtos de exemplo (`link "#"`) quando a consulta falha.
@@ -68,22 +69,28 @@ A amostra de cliques é pequena e inclui testes nossos. Serve de indício, não 
 - **Medido:** `/categoria/ferramentas` em produção não tem `<h1>` nem link de produto; o HTML traz o
   marcador `BAILOUT_TO_CLIENT_SIDE_RENDERING`. A causa é `useSearchParams` em `SearchResults` dentro de
   um `Suspense` sem conteúdo.
-- **Estado:** aberto (Fase 4).
+- **Correção:** a lista de busca/categoria vira o `fallback` do `Suspense`, então o HTML estático já
+  traz o título e as 24 primeiras ofertas com links. Medido no build: `/categoria/ferramentas` e
+  `/busca` com `<h1>` e 24 links de produto (antes: zero).
+- **Estado:** feito. Filtros e busca por URL continuam no navegador depois da hidratação.
 
 ### B2. Busca e categoria carregam o catálogo inteiro
 - **Medido:** 12.850 ofertas em cada visita, 1,39 MB comprimido. `/api/search-index` soma 773 KB.
 - **Correção:** busca, filtros e paginação no servidor. O banco já tem o índice
   `offers_title_search_idx` (texto em português) sem uso.
-- **Estado:** aberto (Fase 4). A outra sessão tem trabalho não commitado nessa área
-  (`src/app/api/cards`, `src/lib/use-cards.ts`); precisa ser combinado antes.
+- **Estado:** aberto. O HTML dessas páginas ainda tem ~7,9 MB sem compressão. A outra sessão tem
+  trabalho não commitado nessa área (`src/app/api/cards`, `src/lib/use-cards.ts`, `SearchItem` em
+  `types.ts`) que leva só os campos de busca por oferta e busca os cartões da página sob demanda.
+  É a direção certa e deve ser commitada lá primeiro; esta branch então é atualizada em cima dela
+  (as duas mexem em `search-results.tsx`, `busca/page.tsx` e `categoria/[slug]/page.tsx`).
 
 ### B3. Oferta vencida vira 404
 - **Medido:** o sitemap lista 12.884 páginas de produto; elas expiram em 48 h e respondem 404.
 - **Correção:** mostrar "oferta encerrada" com ofertas parecidas e tirar do sitemap as inativas.
-- **Obstáculo:** a regra de leitura do banco (`public read active offers`) só libera ofertas ativas,
-  então o site nem consegue ler o título de uma oferta vencida. Precisa de uma função no banco que
-  devolva título, foto e categoria da oferta encerrada.
-- **Estado:** depende de você (autorizar a migração).
+- **Obstáculo:** a regra de leitura do banco só libera ofertas ativas. Resolvido com a função
+  `closed_offer(id)`, que devolve só o que já era público (sem o link de afiliado).
+- **Estado:** feito. A página mostra "Oferta encerrada", o último preço visto, botões para a
+  categoria e a busca, e fica fora do índice (`noindex`). O sitemap já lista só ofertas ativas.
 
 ### B4. Dados estruturados incompletos
 - `Product` e `Offer` existem; faltam `BreadcrumbList` e `ItemList` nas categorias.
@@ -117,7 +124,9 @@ A amostra de cliques é pequena e inclui testes nossos. Serve de indício, não 
 ### C3. Home com poucas ofertas
 - A home gerou 23 dos 57 cliques e o redesign a deixou com 4 ofertas.
 - **Correção:** recolocar prateleiras com dado real ("Baixou de preço hoje", "Mais clicadas").
-- **Estado:** depende de você (a ordem da home foi fixada no pedido do redesign).
+- **Estado:** feito. Prateleiras "Baixou de preço" (quedas registradas nas últimas 48 h) e "Mais
+  clicadas" (3 ou mais cliques); cada uma só aparece com 3 ofertas ou mais. O card mostra "Caiu de
+  R$ X" quando a queda vem do nosso histórico.
 
 ### C4. Oferta e procura desalinhadas
 - Eletrônicos, celulares e games: 25 dos 57 cliques. Catálogo: ferramentas 1.762, casa 1.160.
@@ -151,6 +160,7 @@ A amostra de cliques é pequena e inclui testes nossos. Serve de indício, não 
 | Item | Onde | Estado |
 |---|---|---|
 | Botão "Ver na Mercado Livre" (o certo é "no") | `product-card.tsx` | feito |
+| "Oferta encerrada" fala "da Mercado Livre" | `closed-offer.tsx` | feito (do/da por loja) |
 | Descrições citam só "Mercado Livre e Amazon" | `busca/page.tsx`, `categoria/[slug]/page.tsx` | feito |
 | Busca e categoria no visual antigo | `search-results.tsx`, `filter-panel.tsx` | aberto (Fase 4) |
 | Estrelas em só 11% das ofertas | coleta | aberto |
@@ -176,6 +186,8 @@ A amostra de cliques é pequena e inclui testes nossos. Serve de indício, não 
 5. C1, C2 e C5.
 
 ## Registro do trabalho
+- 10/10/2026 (2º bloco): migrações `offer_recent_prices` e `closed_offer` aplicadas no banco. B1, B3 e
+  C3 feitos; catálogo em memória (build 68 s para 18 s).
 - 10/10/2026: auditoria criada. A1, A3, B5 e os dois textos da seção D corrigidos; código do A2
   pronto, aguardando a migração no banco. Página de erro criada (`src/app/error.tsx`). Teste novo:
   `engine/tests/catalog-failure.test.ts` (264 testes passando).
