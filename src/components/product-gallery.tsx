@@ -4,6 +4,7 @@ import * as Dialog from "@radix-ui/react-dialog"
 import { ChevronLeft, ChevronRight, X, ZoomIn } from "lucide-react"
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 
+import { cardImage } from "@/lib/image-url"
 import { cn } from "@/lib/utils"
 
 /** How much the hover pane magnifies the photo. */
@@ -49,8 +50,17 @@ export function ProductGallery({ images, alt, badge }: Props) {
                   i === index ? "border-primary" : "border-border hover:border-muted-foreground",
                 )}
               >
+                {/* A 56px thumbnail gets the store's small copy, not the full photo (8 of them were ~5 MB). */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={src} alt="" loading="lazy" className="h-full w-full object-contain" />
+                <img
+                  src={cardImage(src)}
+                  alt=""
+                  loading="lazy"
+                  onError={(e) => {
+                    if (e.currentTarget.src !== src) e.currentTarget.src = src
+                  }}
+                  className="h-full w-full object-contain"
+                />
               </button>
             </li>
           ))}
