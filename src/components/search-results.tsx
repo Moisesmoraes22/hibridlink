@@ -42,7 +42,8 @@ const KINDS: Record<string, { label: string; types: readonly { value: string; la
 }
 import type { Product, SortOption, StoreSource } from "@/lib/types"
 
-const PAGE_SIZE = 24
+// 25 = 5 columns x 5 rows on wide screens (the grid has five columns from 1536 px).
+const PAGE_SIZE = 25
 
 interface SearchResultsProps {
   products: Product[]
