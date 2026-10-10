@@ -3,11 +3,12 @@ import { cn } from "@/lib/utils"
 
 /**
  * Each store's mark, small, next to its name (as in the visual references): the Amazon "a" with
- * its smile, the Shopee bag, and Mercado Livre's wordmark on its yellow badge. Decorative: the
+ * its smile, the Shopee bag, and Mercado Livre's logo (handshake and name). Decorative: the
  * store name is always written next to it. In the dark theme the dark marks sit on a white chip.
  */
-const MARKS: Partial<Record<StoreSource, { src: string; yellow?: boolean }>> = {
-  mercado_livre: { src: "/lojas/mercado-livre.svg", yellow: true },
+const MARKS: Partial<Record<StoreSource, { src: string; full?: boolean }>> = {
+  // The official logo already carries the name ("mercado livre"), on white.
+  mercado_livre: { src: "/lojas/mercado-livre-logo.png", full: true },
   shopee: { src: "/lojas/shopee-icon.svg" },
   amazon: { src: "/lojas/amazon-icon.svg" },
 }
@@ -31,9 +32,7 @@ export function StoreLogo({
       className={cn(
         "flex shrink-0 items-center justify-center",
         HEIGHT[size],
-        mark.yellow
-          ? "w-10 rounded-full bg-[#FFE600] px-1.5"
-          : "rounded-md px-0.5 dark:bg-white dark:px-1",
+        mark.full ? "rounded-md bg-white px-1" : "rounded-md px-0.5 dark:bg-white dark:px-1",
         className,
       )}
     >
@@ -41,7 +40,7 @@ export function StoreLogo({
       <img
         src={mark.src}
         alt=""
-        className={cn("w-auto object-contain", mark.yellow ? "h-4" : "h-full py-0.5")}
+        className="h-full w-auto object-contain py-0.5"
         loading="lazy"
         decoding="async"
       />

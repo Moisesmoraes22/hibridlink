@@ -167,10 +167,14 @@ export function ProductDetail({
             <div className="flex items-center gap-3">
               <StoreLogo store={bestOffer.store} size="md" />
               <p className="text-sm text-muted-foreground">
-                <span className="font-semibold text-foreground">{store.name}</span>
-                <span className="mx-2 text-border" aria-hidden>
-                  |
-                </span>
+                {bestOffer.store !== "mercado_livre" && (
+                  <>
+                    <span className="font-semibold text-foreground">{store.name}</span>
+                    <span className="mx-2 text-border" aria-hidden>
+                      |
+                    </span>
+                  </>
+                )}
                 Oferta encontrada {into} {store.name}
               </p>
             </div>
