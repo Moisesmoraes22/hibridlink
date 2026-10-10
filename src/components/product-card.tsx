@@ -112,6 +112,13 @@ export function ProductCard({
             )}
           </div>
 
+          {/* A recorded drop without a store "previous price": say it plainly, from our own history. */}
+          {!discount && product.isPriceDrop && product.priceHistory && product.priceHistory.length >= 2 && (
+            <span className="text-xs font-semibold text-success">
+              Caiu de {formatCurrency(product.priceHistory[product.priceHistory.length - 2])}
+            </span>
+          )}
+
           {product.installments && (
             <span className="text-sm text-foreground">
               em {product.installments.count}x de {formatCurrency(product.installments.value)}
