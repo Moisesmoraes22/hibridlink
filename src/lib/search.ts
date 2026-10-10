@@ -147,7 +147,9 @@ export function matchTier(title: string, groups: string[][]): number {
   if (!groups.every((alts) => alts.some((a) => padded.includes(` ${a}`)))) return 0
   const whole = groups.every((alts) => alts.some((a) => padded.includes(` ${a} `)))
   if (!whole) return 1
-  return groups[0].some((a) => padded.startsWith(` ${a} `)) ? 3 : 2
+  // "Apple iPhone 15" and "Celular iPhone 15" start with the thing searched, as "iPhone 15" does.
+  const head = padded.replace(/^ (apple|celular|smartphone|novo) /, " ")
+  return groups[0].some((a) => head.startsWith(` ${a} `)) ? 3 : 2
 }
 
 /** Price buckets shared by the filter panel, the filter chips and the home section. */
@@ -231,6 +233,10 @@ function djFirst(ranked: Product[]) {
   return [...ranked.filter(core), ...ranked.filter((p) => !core(p))]
 }
 
+/** Words of things sold FOR another product (matched on normalised, accent-free text). */
+const ACCESSORY =
+  /\b(capa|capas|capinha|capinhas|case|cases|pelicula|peliculas|carregador|carregadores|cabo|cabos|suporte|suportes|adaptador|bateria|protetor|pulseira|power ?bank|microfone|lapela|gamepad|compativel|refil|kit)\b/
+
 export function sortProducts(products: Product[], sort: SortOption, query = "") {
   const sorted = [...products]
   switch (sort) {
@@ -260,8 +266,12 @@ export function sortProducts(products: Product[], sort: SortOption, query = "") 
       if (groups.length === 0) return djFirst(ranked)
       // With a search, how well the title matches comes first; the usual ranking breaks ties.
       const hinted = groups.flat().map((w) => CATEGORY_HINTS[w]).find(Boolean)
+      // Searching a thing ("iphone", "furadeira") must not bury it under what is made for it (cases, films,
+      // chargers, holders): those come after the real products, unless the search itself asks for them.
+      const asksForAccessory = groups.flat().some((w) => ACCESSORY.test(w))
+      const demote = (title: string) => (!asksForAccessory && ACCESSORY.test(normalizeText(title)) ? 0 : 20)
       return ranked
-        .map((p, i) => ({ p, i, tier: matchTier(p.title, groups) + (hinted && p.category === hinted ? 10 : 0) }))
+        .map((p, i) => ({ p, i, tier: matchTier(p.title, groups) + (hinted && p.category === hinted ? 10 : 0) + demote(p.title) }))
         .sort((a, b) => b.tier - a.tier || a.i - b.i)
         .map((e) => e.p)
     }

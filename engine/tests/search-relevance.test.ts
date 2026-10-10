@@ -138,3 +138,26 @@ test("a busca não altera a lista original (sem efeito colateral)", () => {
   sortProducts(catalog, "relevance", "a")
   assert.deepEqual(catalog.map((p) => p.title), copy)
 })
+
+test("buscar um aparelho põe os aparelhos antes dos acessórios feitos para ele", () => {
+  const items = [
+    product("Película de Vidro 3D para iPhone 13", "celulares"),
+    product("Carregador Turbo USB-C para iPhone", "celulares"),
+    product("Apple iPhone 15 128 GB Preto", "celulares"),
+    product("Capa Silicone iPhone 12", "celulares"),
+    product("iPhone 14 256 GB Azul", "celulares"),
+  ]
+  const titles = sortProducts(items, "relevance", "iphone").map((p) => p.title)
+  assert.deepEqual(titles.slice(0, 2).sort(), ["Apple iPhone 15 128 GB Preto", "iPhone 14 256 GB Azul"])
+})
+
+test("se a busca pede o acessório, ele não é rebaixado", () => {
+  const items = [product("Apple iPhone 15 128 GB Preto", "celulares"), product("Capa Silicone iPhone 12", "celulares")]
+  assert.equal(sortProducts(items, "relevance", "capa iphone")[0].title, "Capa Silicone iPhone 12")
+})
+
+test("'Apple iPhone 15' conta como título que começa com iphone, igual a 'iPhone 15'", () => {
+  assert.equal(tier("Apple iPhone 15 (128 GB) - Preto", "iphone"), 3)
+  assert.equal(tier("Celular IPhone 17 Pro Max 256GB", "iphone"), 3)
+  assert.equal(tier("Película para iPhone 13", "iphone"), 2)
+})
