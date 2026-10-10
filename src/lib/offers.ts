@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js"
+import { createClient, type SupabaseClient } from "@supabase/supabase-js"
 import { cache } from "react"
 
 import { byDiscount, categoryCounts, countByStoreId, sameCategory, withVariants, type CategoryCount } from "@/lib/deals"
@@ -7,19 +7,30 @@ import { isCredibleDrop, OFFER_COLUMNS, rowToProduct, type OfferRow } from "@/li
 import type { PriceStats, Product } from "@/lib/types"
 
 /**
- * Safety ceiling for the public catalog. The cut drops the offers seen LEAST recently (the
- * Amazon ones, which only come from Telegram), so it must stay well above the live count
- * (9,7k today): at 6,000 the site silently hid the whole Amazon store.
+ * Safety limit only: the catalogue is read whole, from its real size, so no store is ever cut out
+ * (a 6,000 ceiling once hid the whole Amazon store, the least recently seen). If this is ever hit
+ * it is logged; the real fix by then is server-side search (pages must not carry the catalogue).
  */
-const MAX_OFFERS = 15_000
-/** Same idea for price_history (14k rows today, growing with every price change). */
+const MAX_OFFERS = 40_000
+/** Rows read per request (PostgREST caps a request at 1000) and requests in flight at once. */
+const PAGE = 1000
+const PARALLEL = 6
+/** Old path only (before the `offer_recent_prices` function exists in the database). */
 const MAX_HISTORY_ROWS = 40_000
 
+type Supabase = SupabaseClient
+
+/** One retry: a single dropped connection must not fail a whole page build. */
+async function twice<T extends { error: unknown }>(run: () => PromiseLike<T>): Promise<T> {
+  const first = await run()
+  return first.error ? run() : first
+}
+
 /**
- * Live offers from Supabase (public read via RLS). Only offers with OUR
- * affiliate link and an image are shown. Falls back to the mock catalog
- * while the database is empty or unreachable, so the site never goes blank.
- * Memoised per request, so the layout and the page share one query.
+ * Live offers from Supabase (public read via RLS). Only offers with OUR affiliate link and an
+ * image are shown. The sample catalogue is used only when the database is not configured or is
+ * still empty; a failed query THROWS instead, so Next keeps serving the last good page rather
+ * than sample products. Memoised per request, so the layout and the page share one query.
  */
 export const getCatalog = cache(async (): Promise<{ products: Product[]; live: boolean }> => {
   const { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } = process.env
@@ -28,41 +39,81 @@ export const getCatalog = cache(async (): Promise<{ products: Product[]; live: b
   const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
     auth: { persistSession: false },
   })
-  // PostgREST returns at most 1000 rows per request: read pages until the end.
-  const data: unknown[] = []
-  for (let from = 0; from < MAX_OFFERS; from += 1000) {
-    const { data: page, error } = await supabase
-      .from("offers")
-      .select(OFFER_COLUMNS)
-      .eq("is_active", true)
-      .not("affiliate_url", "is", null)
-      .not("image", "is", null)
-      .order("last_seen_at", { ascending: false })
-      .order("id")
-      .range(from, from + 999)
-    if (error) return mockCatalog()
-    data.push(...page)
-    if (page.length < 1000) break
+  const counted = await twice(() => visible(supabase.from("offers").select("id", { count: "exact", head: true })))
+  if (counted.error) throw new Error(`catalogue count failed: ${counted.error.message}`)
+  const total = counted.count ?? 0
+  if (total === 0) return mockCatalog()
+  if (total > MAX_OFFERS) console.error(`[catalogue] ${total} offers, only ${MAX_OFFERS} read: move search to the server`)
+
+  // Pages are read a few at a time; rows can move between pages while a collection runs, so ids are deduped.
+  const starts = Array.from({ length: Math.ceil(Math.min(total, MAX_OFFERS) / PAGE) }, (_, i) => i * PAGE)
+  const byId = new Map<string, OfferRow>()
+  for (let i = 0; i < starts.length; i += PARALLEL) {
+    const pages = await Promise.all(
+      starts.slice(i, i + PARALLEL).map((from) =>
+        twice(() =>
+          visible(supabase.from("offers").select(OFFER_COLUMNS))
+            .order("last_seen_at", { ascending: false })
+            .order("id")
+            .range(from, from + PAGE - 1),
+        ),
+      ),
+    )
+    for (const page of pages) {
+      if (page.error) throw new Error(`catalogue read failed: ${page.error.message}`)
+      for (const row of page.data as unknown as OfferRow[]) byId.set(row.id, row)
+    }
   }
 
-  if (!data.length) return mockCatalog()
+  const { pricesByOffer, dropAtByOffer } = await recentPrices(supabase)
 
-  // The DB trigger only records a row when the price changes (plus one first row per
-  // offer). Read it all, page by page (PostgREST caps a request at 1000 rows), so the
-  // drops are not hidden behind thousands of first-price rows. Oldest-first per offer below.
+  // Click totals (counts only) feed the ranking; if the call fails the site just ranks without them.
+  const { data: clickRows } = await supabase.rpc("offer_click_counts", { days: 14 })
+  const clicksByOffer = new Map<string, number>(
+    ((clickRows ?? []) as { offer_id: string; clicks: number }[]).map((r) => [r.offer_id, r.clicks]),
+  )
+
+  const products = [...byId.values()].map((row) => ({
+    ...rowToProduct(row, pricesByOffer.get(row.id)),
+    clicks: clicksByOffer.get(row.id),
+    dropAt: dropAtByOffer.get(row.id),
+  }))
+  // Unset fields are dropped, not sent as "$undefined": ~80k of them were ~25% of the /busca payload.
+  return { products: withVariants(products).map(withoutUndefined), live: true }
+})
+
+/**
+ * Last recorded prices per offer (oldest first) and, when the latest change was a real drop, when
+ * it happened. One request to the `offer_recent_prices` database function (only offers with two or
+ * more prices come back). Until that function exists, falls back to reading the table page by page.
+ * History is a bonus: if it cannot be read the catalogue still loads, just without price markers.
+ */
+async function recentPrices(supabase: Supabase) {
+  const pricesByOffer = new Map<string, number[]>()
+  const dropAtByOffer = new Map<string, string>()
+
+  const { data, error } = await supabase.rpc("offer_recent_prices")
+  if (!error && Array.isArray(data)) {
+    for (const row of data as { offer_id: string; prices: number[]; last_at: string }[]) {
+      const prices = row.prices.map(Number)
+      pricesByOffer.set(row.offer_id, prices)
+      if (prices.length >= 2 && isCredibleDrop(prices.at(-2)!, prices.at(-1)!)) dropAtByOffer.set(row.offer_id, row.last_at)
+    }
+    return { pricesByOffer, dropAtByOffer }
+  }
+
+  // The DB trigger only records a row when the price changes (plus one first row per offer).
   const history: { offer_id: string; price: number; recorded_at: string }[] = []
-  for (let from = 0; from < MAX_HISTORY_ROWS; from += 1000) {
+  for (let from = 0; from < MAX_HISTORY_ROWS; from += PAGE) {
     const { data: page } = await supabase
       .from("price_history")
       .select("offer_id, price, recorded_at")
       .order("recorded_at", { ascending: false })
       .order("id", { ascending: false })
-      .range(from, from + 999)
-    history.push(...(page ?? []))
-    if ((page?.length ?? 0) < 1000) break
+      .range(from, from + PAGE - 1)
+    history.push(...((page ?? []) as typeof history))
+    if ((page?.length ?? 0) < PAGE) break
   }
-  const pricesByOffer = new Map<string, number[]>()
-  const dropAtByOffer = new Map<string, string>() // when the latest change was a drop (>= 3%)
   for (const row of history.reverse()) {
     const list = pricesByOffer.get(row.offer_id) ?? []
     const price = Number(row.price)
@@ -71,21 +122,8 @@ export const getCatalog = cache(async (): Promise<{ products: Product[]; live: b
     list.push(price)
     pricesByOffer.set(row.offer_id, list)
   }
-
-  // Click totals (counts only) feed the ranking; if the call fails the site just ranks without them.
-  const { data: clickRows } = await supabase.rpc("offer_click_counts", { days: 14 })
-  const clicksByOffer = new Map<string, number>(
-    ((clickRows ?? []) as { offer_id: string; clicks: number }[]).map((r) => [r.offer_id, r.clicks]),
-  )
-
-  const products = (data as OfferRow[]).map((row) => ({
-    ...rowToProduct(row, pricesByOffer.get(row.id)),
-    clicks: clicksByOffer.get(row.id),
-    dropAt: dropAtByOffer.get(row.id),
-  }))
-  // Unset fields are dropped, not sent as "$undefined": ~80k of them were ~25% of the /busca payload.
-  return { products: withVariants(products).map(withoutUndefined), live: true }
-})
+  return { pricesByOffer, dropAtByOffer }
+}
 
 const withoutUndefined = <T extends object>(item: T): T =>
   Object.fromEntries(Object.entries(item).filter(([, value]) => value !== undefined)) as T
@@ -217,7 +255,11 @@ async function computeSiteSummary(): Promise<SiteSummary> {
 export const getOffer = cache(async (id: string): Promise<Product | null> => {
   const supabase = lightClient()
   if (!supabase || !UUID.test(id)) return null
-  const { data: row } = await visible(supabase.from("offers").select(OFFER_COLUMNS)).eq("id", id).maybeSingle()
+  // An error is not "offer missing": throwing keeps the cached page instead of caching a 404.
+  const { data: row, error } = await twice(() =>
+    visible(supabase.from("offers").select(OFFER_COLUMNS)).eq("id", id).maybeSingle(),
+  )
+  if (error) throw new Error(`offer read failed: ${error.message}`)
   if (!row) return null
   const { data: history } = await supabase
     .from("price_history")
