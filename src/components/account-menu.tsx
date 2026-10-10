@@ -14,7 +14,7 @@ const item =
   "flex min-h-10 w-full cursor-pointer items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
 
 /** Desktop header: "Entrar" for visitors, a small avatar menu for signed-in users. */
-export function AccountMenu({ className }: { className?: string }) {
+export function AccountMenu({ className, tone = "default" }: { className?: string; tone?: "default" | "onBrand" }) {
   const { status, user, signOut } = useAuth()
   const { openFavorites } = useFavorites()
   const router = useRouter()
@@ -32,7 +32,10 @@ export function AccountMenu({ className }: { className?: string }) {
       <Link
         href="/login"
         className={cn(
-          "flex h-11 items-center rounded-full px-4 text-sm font-semibold text-foreground transition-colors hover:bg-accent hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          "flex h-11 items-center rounded-full px-4 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          tone === "onBrand"
+            ? "text-white hover:bg-white/15 focus-visible:ring-white"
+            : "text-foreground hover:bg-accent hover:text-brand",
           className,
         )}
       >
@@ -57,7 +60,10 @@ export function AccountMenu({ className }: { className?: string }) {
       >
         <span
           aria-hidden
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground"
+          className={cn(
+            "flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold",
+            tone === "onBrand" ? "bg-white text-hero" : "bg-primary text-primary-foreground",
+          )}
         >
           {initial || <User className="h-4 w-4" />}
         </span>

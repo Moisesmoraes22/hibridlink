@@ -53,11 +53,15 @@ export function SearchBar({
   className,
   defaultValue,
   size = "lg",
+  variant = "default",
 }: {
   className?: string
   defaultValue?: string
   size?: "lg" | "sm"
+  /** "hero": big white bar with a dark "Buscar ofertas" button; "header": compact bar on the blue header. */
+  variant?: "default" | "hero" | "header"
 }) {
+  const onBlue = variant !== "default"
   const router = useRouter()
   const listId = useId()
   const rootRef = useRef<HTMLDivElement>(null)
@@ -207,11 +211,17 @@ export function SearchBar({
         onSubmit={handleSubmit}
         role="search"
         className={cn(
-          "flex w-full items-center gap-2 rounded-full border border-border bg-background shadow-lg shadow-foreground/5 transition-colors focus-within:border-primary focus-within:ring-2 focus-within:ring-ring/30",
-          size === "lg" ? "p-1.5 sm:p-2" : "p-1",
+          "flex w-full items-center gap-2 border transition-colors",
+          variant === "default" &&
+            "rounded-full border-border bg-background shadow-lg shadow-foreground/5 focus-within:border-primary focus-within:ring-2 focus-within:ring-ring/30",
+          variant === "hero" &&
+            "rounded-xl border-white/70 bg-white p-1.5 shadow-xl shadow-black/20 ring-4 ring-white/25 focus-within:ring-white/60 sm:p-2",
+          variant === "header" &&
+            "rounded-lg border-white/80 bg-white p-1 focus-within:ring-2 focus-within:ring-white/70",
+          variant === "default" && (size === "lg" ? "p-1.5 sm:p-2" : "p-1"),
         )}
       >
-        <Search className="ml-3 h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
+        <Search className={cn("ml-3 h-5 w-5 shrink-0", onBlue ? "text-slate-500" : "text-muted-foreground")} aria-hidden />
         <input
           value={value}
           onChange={(event) => {
@@ -234,10 +244,17 @@ export function SearchBar({
           aria-label="O que você está procurando?"
           autoComplete="off"
           enterKeyHint="search"
-          placeholder="O que você está procurando?"
+          placeholder={
+            variant === "hero"
+              ? "Qual produto você está procurando?"
+              : variant === "header"
+                ? "Buscar produto ou marca"
+                : "O que você está procurando?"
+          }
           className={cn(
-            "w-full min-w-0 bg-transparent text-foreground placeholder:text-muted-foreground focus:outline-none",
-            size === "lg" ? "text-sm sm:text-base" : "text-sm",
+            "w-full min-w-0 bg-transparent focus:outline-none",
+            onBlue ? "text-slate-900 placeholder:text-slate-500" : "text-foreground placeholder:text-muted-foreground",
+            variant === "hero" ? "py-2 text-base" : size === "lg" ? "text-sm sm:text-base" : "text-sm",
           )}
         />
         {value && (
@@ -254,15 +271,29 @@ export function SearchBar({
             <X className="h-4 w-4" aria-hidden />
           </button>
         )}
-        <Button
-          type="submit"
-          className={cn(
-            "shrink-0 rounded-full active:scale-95",
-            size === "lg" ? "px-6" : "px-4 text-xs",
-          )}
-        >
-          Pesquisar
-        </Button>
+        {variant === "default" ? (
+          <Button
+            type="submit"
+            className={cn("shrink-0 rounded-full active:scale-95", size === "lg" ? "px-6" : "px-4 text-xs")}
+          >
+            Pesquisar
+          </Button>
+        ) : variant === "hero" ? (
+          <button
+            type="submit"
+            className="h-11 shrink-0 cursor-pointer rounded-lg bg-footer-bar px-5 text-sm font-bold text-white transition-colors hover:bg-footer-bar/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-95 sm:px-7 sm:text-base"
+          >
+            Buscar ofertas
+          </button>
+        ) : (
+          <button
+            type="submit"
+            aria-label="Buscar"
+            className="flex h-9 w-10 shrink-0 cursor-pointer items-center justify-center rounded-md bg-footer-bar text-white transition-colors hover:bg-footer-bar/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-95"
+          >
+            <Search className="h-4 w-4" aria-hidden />
+          </button>
+        )}
       </form>
 
       {showPanel && (

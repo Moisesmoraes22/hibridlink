@@ -63,11 +63,14 @@ export const MenuItem = ({
   active,
   item,
   children,
+  onBrand = false,
 }: {
   setActive: (item: string | null) => void;
   active: string | null;
   item: string;
   children?: React.ReactNode;
+  /** White trigger text, for the blue header. */
+  onBrand?: boolean;
 }) => {
   const open = active === item;
   const panelId = useId();
@@ -87,6 +90,7 @@ export const MenuItem = ({
         className={cn(
           "flex h-10 cursor-pointer items-center gap-1 rounded-md text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           open ? "text-brand" : "text-foreground hover:text-brand",
+          onBrand && (open ? "text-white underline underline-offset-4" : "text-white hover:text-white/85"),
         )}
       >
         {item}

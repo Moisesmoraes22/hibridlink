@@ -66,7 +66,16 @@ export function SiteHeader({
   const favoritesControls = useAnimationControls();
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const pathname = usePathname();
+
+  // On the home the big search is in the hero; once it scrolls away, the header takes over.
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 300);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   useEffect(() => {
     if (bumpSignal === 0) return;
@@ -77,33 +86,28 @@ export function SiteHeader({
   }, [bumpSignal, favoritesControls]);
 
   const homeActive = pathname === "/";
+  const showSearch = !homeActive || scrolled;
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-border/60 bg-background/95 py-3 backdrop-blur-sm">
+    <header className="sticky top-0 z-40 w-full bg-hero py-2.5 text-white shadow-sm shadow-black/10">
       <div className="page-container flex items-center gap-3">
         <Link
           href="/"
           className="-my-2 flex items-center gap-2 rounded-md py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <BrandMark className="h-7 w-auto text-primary" />
-          <span className="bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-xl font-semibold text-transparent">
-            E-Zoom
-          </span>
+          <BrandMark className="h-7 w-auto text-white" />
+          <span className="text-xl font-extrabold tracking-tight text-white">E-Zoom</span>
         </Link>
 
-        <div className="ml-6 hidden items-center gap-7 lg:flex">
+        <div className="ml-4 hidden items-center gap-6 lg:flex">
           <Link
-            href="/"
-            aria-current={homeActive ? "page" : undefined}
-            className={cn(
-              "rounded-md text-sm font-semibold transition-colors hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              homeActive ? "text-brand" : "text-foreground",
-            )}
+            href="/busca?ordenacao=desconto"
+            className="rounded-md text-sm font-semibold text-white transition-colors hover:text-white/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
           >
-            Início
+            Ofertas do dia
           </Link>
           <Menu active={activeMenu} setActive={setActiveMenu}>
-            <MenuItem setActive={setActiveMenu} active={activeMenu} item="Categorias">
+            <MenuItem setActive={setActiveMenu} active={activeMenu} item="Categorias" onBrand>
               <div className="grid w-[26rem] grid-cols-2 gap-1">
                 {categories.slice(0, MENU_CATEGORIES).map((category) => {
                   const Icon = categoryIcon(category.slug);
@@ -129,45 +133,29 @@ export function SiteHeader({
                 </MenuLink>
               </div>
             </MenuItem>
-            <MenuItem setActive={setActiveMenu} active={activeMenu} item="Ofertas">
-              <div className="grid w-72 gap-1">
-                {OFFER_VIEWS.map(({ label, href, icon: Icon, hint }) => (
-                  <MenuLink key={label} href={href}>
-                    <Icon className="h-4 w-4 shrink-0 text-brand" aria-hidden />
-                    <span className="flex flex-col leading-tight">
-                      {label}
-                      <span className="text-xs font-normal text-muted-foreground">{hint}</span>
-                    </span>
-                  </MenuLink>
-                ))}
-              </div>
-              <div className="mt-2 border-t border-border pt-2">
-                <MenuLink href="/busca" className="text-brand">
-                  Ver todas as ofertas
-                  <ArrowRight className="h-4 w-4" aria-hidden />
-                </MenuLink>
-              </div>
-            </MenuItem>
           </Menu>
-          <Link
-            href="/#sobre"
-            className="rounded-md text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            Sobre
-          </Link>
         </div>
+
+        {showSearch && (
+          <div className="mx-2 hidden min-w-0 flex-1 sm:block lg:mx-6 lg:max-w-2xl">
+            <SearchBar variant="header" size="sm" />
+          </div>
+        )}
 
         <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
           <Link
             href="/busca"
             aria-label="Buscar ofertas"
-            className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full text-foreground transition-colors hover:bg-accent hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-90"
+            className={cn(
+              "flex h-11 w-11 cursor-pointer items-center justify-center rounded-full text-white transition-colors hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white active:scale-90",
+              showSearch && "sm:hidden",
+            )}
           >
             <Search className="h-5 w-5" aria-hidden />
           </Link>
 
-          <ThemeMenu className="hidden lg:block" />
-          <AccountMenu className="hidden lg:flex" />
+          <ThemeMenu className="hidden text-white lg:block" tone="onBrand" />
+          <AccountMenu className="hidden lg:flex" tone="onBrand" />
 
           <motion.button
             ref={favoritesIconRef}
@@ -176,7 +164,7 @@ export function SiteHeader({
             aria-label={`Abrir favoritos${count > 0 ? ` (${count} ${count === 1 ? "item" : "itens"})` : ""}`}
             animate={favoritesControls}
             whileTap={{ scale: 0.9 }}
-            className="relative flex h-11 cursor-pointer items-center gap-2 rounded-full border-2 border-primary/40 bg-primary/10 px-3 text-brand transition-colors duration-300 hover:border-primary hover:bg-primary hover:text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="relative flex h-11 cursor-pointer items-center gap-2 rounded-full px-3 text-white transition-colors duration-300 hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
           >
             <Bookmark className="h-5 w-5" aria-hidden />
             <span className="hidden text-sm font-semibold sm:inline">Favoritos</span>
@@ -188,7 +176,7 @@ export function SiteHeader({
                   animate={{ scale: 1, opacity: 1, y: 0 }}
                   exit={{ scale: 0.3, opacity: 0 }}
                   transition={{ type: "spring", stiffness: 500, damping: 20 }}
-                  className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[11px] font-bold text-primary-foreground shadow-md ring-2 ring-background"
+                  className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-white px-1 text-[11px] font-bold text-hero shadow-md ring-2 ring-hero"
                 >
                   {count}
                 </motion.span>
@@ -202,7 +190,7 @@ export function SiteHeader({
                 variant="ghost"
                 size="icon"
                 aria-label="Abrir menu"
-                className="h-11 w-11 transition-colors hover:text-brand"
+                className="h-11 w-11 text-white transition-colors hover:bg-white/15 hover:text-white"
               >
                 <MenuIcon className="h-5 w-5" aria-hidden />
               </Button>

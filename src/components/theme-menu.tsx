@@ -14,7 +14,7 @@ const OPTIONS: { value: Theme; label: string; icon: LucideIcon }[] = [
 ]
 
 /** Header version of the theme picker: one small button that opens the three choices. */
-export function ThemeMenu({ className }: { className?: string }) {
+export function ThemeMenu({ className, tone = "default" }: { className?: string; tone?: "default" | "onBrand" }) {
   const { theme, setTheme } = useTheme()
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
@@ -39,7 +39,12 @@ export function ThemeMenu({ className }: { className?: string }) {
         aria-label="Aparência"
         title="Aparência"
         onClick={() => setOpen((v) => !v)}
-        className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full text-foreground transition-colors hover:bg-accent hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className={cn(
+          "flex h-11 w-11 cursor-pointer items-center justify-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          tone === "onBrand"
+            ? "text-white hover:bg-white/15 focus-visible:ring-white"
+            : "text-foreground hover:bg-accent hover:text-brand",
+        )}
       >
         <SunMoon className="h-5 w-5" aria-hidden />
       </button>
